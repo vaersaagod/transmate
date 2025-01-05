@@ -1,0 +1,40 @@
+{
+    "name": "vaersaagod/transmate",
+    "description": "Potato, patate, potet, kartoffel. We're not that different, mate!",
+    "type": "craft-plugin",
+    "version": "1.0.0-beta",
+    "require": {
+        "php": "^8.2.0",
+        "craftcms/cms": "^5.5.0",
+        "openai-php/client": "^v0.10.3",
+        "deeplcom/deepl-php": "^v1.10.1"
+    },
+    "require-dev": {
+
+    },
+    "autoload": {
+        "psr-4": {
+            "vaersaagod\\transmate\\": "src/"
+        }
+    },
+    "extra": {
+        "handle": "transmate",
+        "name": "TransMate",
+        "developer": "Værsågod",
+        "documentationUrl": "",
+        "class": "vaersaagod\\transmate\\TransMate"
+    },
+    "scripts": {
+
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.2"
+        },
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true
+        }
+    }
+}
