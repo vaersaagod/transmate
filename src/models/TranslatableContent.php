@@ -14,6 +14,7 @@ class TranslatableContent extends Model
 
     public function translate(TranslatorInterface $translator): void
     {
+        // TODO: Add option to get a full XML document to translate
         foreach ($this->fields as $fieldProcessor) {
             /** @var $fieldProcessor ProcessorInterface */
             $fieldProcessor->translate($translator);

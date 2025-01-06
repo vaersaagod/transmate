@@ -4,21 +4,26 @@ namespace vaersaagod\transmate\translators;
 
 use Craft;
 use Illuminate\Support\Collection;
+use vaersaagod\transmate\models\OpenAISettings;
 use vaersaagod\transmate\TransMate;
 
-class OpenAITranslator extends BaseTranslator implements TranslatorInterface
+class OpenAITranslator extends BaseTranslator
 {
+    
+    public function __construct(?array $settings=null)
+    {
+        $this->config = new OpenAISettings($settings);
+    }
     
     public function translate(string $content, array $params = []): mixed
     {
-        // TODO : Things need to come from config passed to the translator
-        $client = \OpenAI::client(TransMate::getInstance()->getSettings()->openAIApiKey);
+        $client = \OpenAI::client($this->config->apiKey);
         
         $prompt = 'Translate this text from ' . Craft::$app->getI18n()->getLocaleById($this->fromLanguage)->getDisplayName() . ' to ' . Craft::$app->getI18n()->getLocaleById($this->toLanguage)->getDisplayName() . ', keep html, dont add anything around the result: ' . $content;
         
         $clientParams = [
-            'model' => 'gpt-4',
-            'temperature' => 0.7,
+            'model' => $this->config->engine,
+            'temperature' => $this->config->temperature,
             'messages' => [
                 ['role' => 'user', 'content' => $prompt],
             ],

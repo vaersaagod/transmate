@@ -10,9 +10,12 @@ use craft\elements\Entry;
 use craft\models\Site;
 use vaersaagod\transmate\helpers\ElementHelper;
 use vaersaagod\transmate\helpers\TranslateHelper;
-use vaersaagod\transmate\models\fieldprocessors\ProcessorInterface as ProcessorInterfaceAlias;
+use vaersaagod\transmate\models\fieldprocessors\ProcessorInterface;
+use vaersaagod\transmate\translators\BaseTranslator;
 use vaersaagod\transmate\translators\DeepLTranslator;
+use vaersaagod\transmate\translators\OpenAITranslator;
 use vaersaagod\transmate\TransMate;
+use yii\base\InvalidConfigException;
 
 /**
  * Translate Service
@@ -50,8 +53,12 @@ class Translate extends Component
         }
         
         // Create translator
-        // TODO: Make translators dynamic based on config
-        $translator = new DeepLTranslator();
+        $translator = $this->getTranslator();
+
+        if ($translator === null) {
+            throw new InvalidConfigException('Translator could not be created.');
+        }
+
         $translator->fromLanguage = $fromSite->getLocale()->getLanguageID();
         $translator->toLanguage = $language;
 
@@ -59,7 +66,7 @@ class Translate extends Component
         $translatableContent->translate($translator);
         
         foreach ($translatableContent->fields as $handle => $processor) {
-            /** @var $processor ProcessorInterfaceAlias */
+            /** @var $processor ProcessorInterface */
             
             if ($handle === 'title') { // Handling native field "title"
                 $targetElement->title = $processor->getValue();
@@ -90,4 +97,23 @@ class Translate extends Component
         return $targetElement;
     }
 
+    public function getTranslator(): ?BaseTranslator
+    {
+        $translator = TransMate::getInstance()->getSettings()->translator;
+        
+        if (empty($translator)) {
+            return null;
+        }
+        
+        if ($translator === 'deepl') {
+            return new DeepLTranslator(TransMate::getInstance()->getSettings()->translatorConfig[$translator] ?? null);
+        } 
+        
+        if ($translator === 'openai') {
+            return new OpenAITranslator(TransMate::getInstance()->getSettings()->translatorConfig[$translator] ?? null);
+        }
+        
+        return null;
+    }
+    
 }

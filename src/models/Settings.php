@@ -5,9 +5,6 @@ namespace vaersaagod\transmate\models;
 use Craft;
 use craft\base\Model;
 
-/**
- * AIMate settings
- */
 class Settings extends Model
 {
     public string $saveMode = 'current'; // draft, current (?)
@@ -15,10 +12,19 @@ class Settings extends Model
     public array $excludedFields = [];
     public ?string $disableTranslationProperty = null;
     public ?string $creatorId = null;
-    public string $openAIApiKey;
-    public string $deepLApiKey;
     
-
+    public string $translator = '';
+    public array $translatorConfig = [
+        'deepl' => [
+            'apiKey' => ''
+        ],
+        'openai' => [
+            'apiKey' => '',
+            'engine' => 'gpt-4',
+            'temperature' => 0.7,
+        ],
+    ];
+    
     /**
      * @param $values
      * @param $safeOnly
