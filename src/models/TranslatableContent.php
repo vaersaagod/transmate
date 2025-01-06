@@ -25,4 +25,9 @@ class TranslatableContent extends Model
         $this->fields[$handle] = $processor;
     }
 
+    public function hasFieldWithHandle(string $handle): bool
+    {
+        return isset($this->fields[$handle]);
+    }
+
 }

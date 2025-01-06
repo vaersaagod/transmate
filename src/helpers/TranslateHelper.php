@@ -3,6 +3,7 @@
 namespace vaersaagod\transmate\helpers;
 
 use craft\base\Element;
+use craft\base\ElementInterface;
 use craft\base\Field;
 use craft\elements\Asset;
 use craft\elements\Entry;
@@ -27,8 +28,7 @@ class TranslateHelper
     {
         $translatableContent = new TranslatableContent();
         
-        // TODO: må ta høyde for evt auto-generert format (?)
-        if ($element->title && $element->getIsTitleTranslatable()) {
+        if (self::shouldTranslateTitle($element)) {
             $translatableContent->addField('title', new PlainTextProcessor(['field' => null, 'originalValue' => $element->title]));
         }
         
@@ -52,6 +52,8 @@ class TranslateHelper
             } elseif ($translatableField) {
                 if ($field instanceof PlainText) {
                     $translatableContent->addField($field->handle, new PlainTextProcessor(['field' => $field, 'originalValue' => $element->getFieldValue($field->handle)]));
+                    
+                    
                 } elseif ($field instanceof Table) {
                     $translatableContent->addField($field->handle, new TableProcessor(['field' => $field, 'originalValue' => $element->getFieldValue($field->handle)]));
                 } elseif ($field instanceof Link) {
@@ -106,5 +108,45 @@ class TranslateHelper
         }
 
         return $content;
-    }    
+    }
+
+    public static function shouldTranslateSlug(Element $element): bool
+    {
+        if (TransMate::getInstance()->getSettings()->resetSlugMode === 'never') {
+            return false;
+        }
+        
+        if ($element instanceof Entry && $element->typeId !== null) {
+            $type = $element->type;
+            
+            if ($type->slugTranslationMethod === Field::TRANSLATION_METHOD_NONE) {
+                return false;
+            }
+        }
+        
+        // todo: Handle resetSlugMode = 'new' if we decide to...
+        
+        return true;
+    }
+
+    public static function shouldTranslateTitle(Element $element): bool
+    {
+        if (!$element->getIsTitleTranslatable()) {
+            return false;
+        }
+        
+        if ($element instanceof Entry && $element->typeId !== null) {
+            if (!empty($element->type->titleFormat) && str_contains($element->type->titleFormat, '{')) {
+                return false;
+            }
+        }
+        
+        if (empty($element->title)) {
+            return false;
+        }
+        
+        // todo: Anything more/other we should account for 
+        
+        return true;
+    }
 }

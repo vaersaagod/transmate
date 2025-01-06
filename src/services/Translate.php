@@ -63,21 +63,18 @@ class Translate extends Component
             
             if ($handle === 'title') { // Handling native field "title"
                 $targetElement->title = $processor->getValue();
-    
-                // ikke fan av at dette er her, men... Kan vel bare flytte den ut?
-                // TODO: ta høyde for slug translation method
-                if (TransMate::getInstance()->getSettings()->resetSlugMode === 'always') { // Option "new" is not implemented
-                    $targetElement->slug = null;
-                }
-                
             } elseif ($handle === 'alt' && $targetElement instanceof Asset) { // Handling native field "alt", but only for assets.
                 $targetElement->alt = $processor->getValue();
-                
             } else {
                 $targetElement->setFieldValue($handle, $processor->getValue());
-                
             }
         }
+        
+        // Handling slug
+        if (TranslateHelper::shouldTranslateSlug($element) && $translatableContent->hasFieldWithHandle('title')) { 
+            $targetElement->slug = null;
+        }
+        
 
         $revisionNotes = 'Translated from "'.$fromSite->name.'" ('.$fromSite->getLocale()->getLanguageID().')';
 
