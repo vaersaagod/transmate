@@ -5,11 +5,13 @@ namespace vaersaagod\transmate\services;
 use Craft;
 use craft\base\Component;
 use craft\base\Element;
+use craft\base\ElementInterface;
 use craft\elements\Asset;
 use craft\elements\Entry;
 use craft\models\Site;
 use vaersaagod\transmate\helpers\ElementHelper;
 use vaersaagod\transmate\helpers\TranslateHelper;
+use vaersaagod\transmate\jobs\TranslateJob;
 use vaersaagod\transmate\models\fieldprocessors\ProcessorInterface;
 use vaersaagod\transmate\translators\BaseTranslator;
 use vaersaagod\transmate\translators\DeepLTranslator;
@@ -95,6 +97,79 @@ class Translate extends Component
         }
 
         return $targetElement;
+    }
+
+    public function maybeAutoTranslate(ElementInterface $element): void
+    {
+        $settings = TransMate::getInstance()->getSettings();
+        
+        if ($element instanceof Asset && $element->getScenario() === Asset::SCENARIO_INDEX) {
+            return;
+        }
+
+        if ($element->getIsRevision()) {
+            return;
+        }
+
+        if (!$settings->autoTranslateDrafts && $element->getIsDraft()) {
+            return;
+        }
+
+        /** @var \vaersaagod\transmate\models\AutoTranslateSettings $autoTranslateSettings */
+        foreach ($settings->autoTranslate as $autoTranslateSettings)
+        {
+            $fromSite = is_string($autoTranslateSettings->fromSite) ? Craft::$app->sites->getSiteByHandle($autoTranslateSettings->fromSite) : Craft::$app->sites->getSiteById($autoTranslateSettings->fromSite);
+            $toSites = !is_array($autoTranslateSettings->toSite) ? [$autoTranslateSettings->toSite] : $autoTranslateSettings->toSite;
+            $elementType = $autoTranslateSettings->elementType;
+            $criteria = $autoTranslateSettings->criteria;
+            
+            if ($fromSite === null || $element->siteId !== $fromSite->id) {
+                continue;
+            }
+            
+            if (!($element instanceof $elementType)) {
+                continue;
+            }
+            
+            if ($criteria) {
+                /** @var \craft\db\Query $query */
+                $query = $elementType::find();
+                $criteria['id'] = $element->getId();
+                $criteria['siteId'] = $fromSite->id;
+                $criteria['status'] = null;
+
+                if ($settings->autoTranslateDrafts) {
+                    $criteria['drafts'] = true;
+                }
+
+                Craft::configure($query, $criteria);
+
+                if ($query->count() === 0) {
+                    continue;
+                }
+            }
+            
+            // We're good, create jobs
+            
+            /** @var Site $toSite */
+            foreach ($toSites as $toSiteIdOrHandle) {
+                $queue = Craft::$app->getQueue();
+                $toSite = is_string($toSiteIdOrHandle) ? Craft::$app->sites->getSiteByHandle($toSiteIdOrHandle) : Craft::$app->sites->getSiteById($toSiteIdOrHandle);
+                
+                if ($toSite === null) {
+                    continue;
+                }
+                
+                $jobId = $queue->push(new TranslateJob([
+                    'description' => Craft::t('transmate', 'Translating content'),
+                    'elementId' => $element->id,
+                    'fromSiteId' => $fromSite->id,
+                    'toSiteId' => $toSite->id
+                ]));
+                
+                Craft::info("Created transform job with ID $jobId for element with ID $element->id from site with ID $fromSite->id to site with ID $toSite->id", __METHOD__);
+            }
+        }
     }
 
     public function getTranslator(): ?BaseTranslator

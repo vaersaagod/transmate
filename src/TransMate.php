@@ -3,9 +3,13 @@
 namespace vaersaagod\transmate;
 
 use Craft;
+use craft\base\Event;
 use craft\base\Model;
 use craft\base\Plugin;
+use craft\elements\Asset;
+use craft\events\ElementEvent;
 use craft\log\MonologTarget;
+use craft\services\Elements;
 use Monolog\Formatter\LineFormatter;
 use Psr\Log\LogLevel;
 
@@ -26,6 +30,8 @@ class TransMate extends Plugin
 {
     public string $schemaVersion = '1.0.0';
     public bool $hasCpSettings = false;
+    
+    public array $translatedElements = [];
 
     public static function config(): array
     {
@@ -67,7 +73,21 @@ class TransMate extends Plugin
 
     private function attachEventHandlers(): void
     {
-        
+        if (!empty($this->getSettings()->autoTranslate)) {
+            Event::on(Elements::class, Elements::EVENT_AFTER_SAVE_ELEMENT, function(ElementEvent $event) {
+                $element = $event->element;
+                $key = $element->id . '__' . $element->siteId;
+                
+                if ($element->propagating || $element->resaving) { // Only trigger for the original site saved
+                    return;
+                }
+                
+                if (!isset($this->translatedElements[$key])) {
+                    $this->translatedElements[$key] = true;
+                    TransMate::getInstance()->translate->maybeAutoTranslate($element);
+                }
+            });
+        }
     }
 
 

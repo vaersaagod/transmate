@@ -25,6 +25,9 @@ class Settings extends Model
         ],
     ];
     
+    public array $autoTranslate = []; 
+    public bool $autoTranslateDrafts = false; 
+    
     /**
      * @param $values
      * @param $safeOnly
@@ -32,7 +35,15 @@ class Settings extends Model
      */
     public function setAttributes($values, $safeOnly = true): void
     {
-        // ...
+        if (!empty($values['autoTranslate'])) {
+            $r = [];
+            
+            foreach ($values['autoTranslate'] as $autoConfig) {
+                $r[] = new AutoTranslateSettings($autoConfig);
+            }
+            
+            $values['autoTranslate'] = $r;
+        }
         
         parent::setAttributes($values, $safeOnly);
     }
