@@ -5,6 +5,7 @@ namespace vaersaagod\transmate\console\controllers;
 use Craft;
 use craft\console\Controller;
 
+use craft\elements\Entry;
 use vaersaagod\transmate\TransMate;
 use yii\console\ExitCode;
 use yii\helpers\BaseConsole;
@@ -51,49 +52,64 @@ class TranslateController extends Controller
         }
 
         $fromSite = is_string($this->fromSite) ? Craft::$app->sites->getSiteByHandle($this->fromSite) : Craft::$app->sites->getSiteById($this->fromSite);
-        $toSite = is_string($this->toSite) ? Craft::$app->sites->getSiteByHandle($this->toSite) : Craft::$app->sites->getSiteById($this->toSite);
-
-        if ($fromSite === null || $toSite === null) {
-            if ($fromSite === null) {
-                $this->stderr("Could not find site (from) with value: ".$this->fromSite.PHP_EOL, BaseConsole::FG_RED);
-            }
-            if ($toSite === null) {
-                $this->stderr("Could not find site (to) with value: ".$this->toSite.PHP_EOL, BaseConsole::FG_RED);
-            }
-
-            $this->stderr(PHP_EOL, BaseConsole::FG_RED);
-
-            return ExitCode::UNSPECIFIED_ERROR;
-        }
-
-        if ($this->language === '') {
-            $this->language = $toSite->language;
-        }
-
-
-        if ($this->elementId !== null) {
-            $element = Craft::$app->elements->getElementById($this->elementId, null, $fromSite->id);
-
-            if (!$element) {
-                $this->stderr("Element with ID $this->elementId not found.".PHP_EOL.PHP_EOL, BaseConsole::FG_RED);
-
-                return ExitCode::UNSPECIFIED_ERROR;
-            }
-
-            $translatedElement = TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite, $this->language);
-
-            if ($translatedElement === null) {
-                $this->stderr("Element could not be translated.".PHP_EOL.PHP_EOL, BaseConsole::FG_RED);
-
-                return ExitCode::UNSPECIFIED_ERROR;
-            }
-
-            $this->stdout("Element `$translatedElement->title` translated!".PHP_EOL.PHP_EOL, BaseConsole::FG_GREEN);
+        
+        if (is_string($this->toSite) && str_contains($this->toSite, ',')) {
+            $toSites = explode(',', $this->toSite);
         } else {
-            // todo : section
+            $toSites = [$this->toSite];
         }
         
-        // todo: since parameter ^
+        foreach ($toSites as $toSiteElem) {
+            $toSite = is_string($toSiteElem) ? Craft::$app->sites->getSiteByHandle($toSiteElem) : Craft::$app->sites->getSiteById($toSiteElem);
+
+            if ($fromSite === null || $toSite === null) {
+                if ($fromSite === null) {
+                    $this->stderr("Could not find site (from) with value: ".$this->fromSite.PHP_EOL, BaseConsole::FG_RED);
+                }
+                if ($toSite === null) {
+                    $this->stderr("Could not find site (to) with value: ".$this->toSite.PHP_EOL, BaseConsole::FG_RED);
+                }
+
+                $this->stderr(PHP_EOL, BaseConsole::FG_RED);
+
+                return ExitCode::UNSPECIFIED_ERROR;
+            }
+
+            $language = !empty($this->language) ? $this->language : $toSite->language;
+            
+            if ($this->elementId !== null) {
+                $element = Craft::$app->elements->getElementById($this->elementId, null, $fromSite->id);
+
+                if (!$element) {
+                    $this->stderr("Element with ID $this->elementId not found.".PHP_EOL.PHP_EOL, BaseConsole::FG_RED);
+
+                    return ExitCode::UNSPECIFIED_ERROR;
+                }
+
+                $translatedElement = TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite, $language);
+
+                if ($translatedElement === null) {
+                    $this->stderr("Element could not be translated.".PHP_EOL.PHP_EOL, BaseConsole::FG_RED);
+
+                    return ExitCode::UNSPECIFIED_ERROR;
+                }
+
+                $this->stdout("Element `$translatedElement->title` translated!".PHP_EOL.PHP_EOL, BaseConsole::FG_GREEN);
+            } else {
+                $elements = Entry::find()->section($this->section)->status(null)->siteId($fromSite->id)->all();
+
+                foreach ($elements as $element) {
+                    $translatedElement = TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite, $language);
+
+                    if ($translatedElement === null) {
+                        $this->stderr("Element `$element->title` could not be translated.".PHP_EOL, BaseConsole::FG_RED);
+                    } else {
+                        $this->stdout("Element `$translatedElement->title` translated to site `$toSite->name`!".PHP_EOL, BaseConsole::FG_GREEN);
+                    }
+                }
+            }
+            // todo: since parameter ^
+        }
 
         return ExitCode::OK;
     }
