@@ -1,17 +1,8 @@
 <?php
-/**
- * Imager X plugin for Craft CMS
- *
- * Ninja powered image transforms.
- *
- * @link      https://www.spacecat.ninja
- * @copyright Copyright (c) 2022 André Elvan
- */
 
 namespace vaersaagod\transmate\jobs;
 
 use Craft;
-use craft\elements\Asset;
 use craft\queue\BaseJob;
 use craft\queue\QueueInterface;
 

@@ -47,8 +47,8 @@ class Translate extends Component
         }
 
         $targetElement = ElementHelper::getTargetEntry($element, $toSite);
-
-        if (TransMate::getInstance()->getSettings()->disableTranslationProperty !== null && $targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) {
+        
+        if (TransMate::getInstance()->getSettings()->disableTranslationProperty !== null && isset($targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) && $targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) {
             // TBD: Klassisk dilemma, skal jeg returnere null her? Eller f.eks targetElement uendret? Eller noe annet? 
             // return null;
             return $targetElement;
