@@ -48,8 +48,10 @@ class MatrixProcessor extends Model implements ProcessorInterface
 
             if ($translatedBlock) {
                 // TBD: We always create new blocks... Maybe not?
+                // Yep, does not work when blocks are actually propagated to other sites.
                 $r['new:'.++$c] = [
                     'type' => $block->type->handle,
+                    'title' => $translatedBlock->title,
                     'fields' => $translatedBlock->serializedFieldValues
                 ];
             }   

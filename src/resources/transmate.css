@@ -1,0 +1,46 @@
+.transmate-modal {
+  --width: calc(var(--ui-control-height) * 10 + var(--s) * 9 + var(--xl) * 2);
+  width: var(--width) !important;
+  min-width: 0 !important;
+  max-width: calc(100% - 20px) !important;
+
+  .header {
+    padding-block: calc(var(--m));
+    text-align: center;
+  }
+
+  .body {
+    min-height: 300px;
+    position: relative;
+    padding-bottom: 70px;
+
+    .transmate-modal--list {
+      position: relative;
+
+      fieldset {
+        box-sizing: border-box;
+        height: 100%;
+        overflow: auto;
+        padding-block-end: 20px;
+        position: relative;
+      }
+    }
+  }
+
+  .footer {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-start: 0;
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+  }
+}
+
+
+.transmate-modal__draft-checkbox {
+    width: 100%;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--gray-100);
+}

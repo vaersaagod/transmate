@@ -34,16 +34,22 @@ class Translate extends Component
      * @param \craft\models\Site  $fromSite
      * @param \craft\models\Site  $toSite
      * @param string|null         $language
+     * @param string|null         $saveMode
      *
      * @return \craft\base\Element|null
      * @throws \Throwable
      * @throws \craft\errors\ElementNotFoundException
      * @throws \yii\base\Exception
+     * @throws \yii\base\InvalidConfigException
      */
-    public function translateElement(Element $element, Site $fromSite, Site $toSite, ?string $language = null): ?Element
+    public function translateElement(Element $element, Site $fromSite, Site $toSite, ?string $language = null, ?string $saveMode = null): ?Element
     {
         if ($language === null) {
             $language = $toSite->getLocale()->getLanguageID();
+        }
+        
+        if ($saveMode === null) {
+            $saveMode = TransMate::getInstance()->getSettings()->saveMode;
         }
 
         $targetElement = ElementHelper::getTargetEntry($element, $toSite);
@@ -65,6 +71,7 @@ class Translate extends Component
         $translator->toLanguage = $language;
 
         $translatableContent = TranslateHelper::getTranslatableContentFromElement($element, $targetElement);
+        //Craft::dd($translatableContent);
         $translatableContent->translate($translator);
         
         foreach ($translatableContent->fields as $handle => $processor) {
@@ -84,13 +91,14 @@ class Translate extends Component
             $targetElement->slug = null;
         }
         
-
         $revisionNotes = 'Translated from "'.$fromSite->name.'" ('.$fromSite->getLocale()->getLanguageID().')';
+        
+        $userId = Craft::$app->getUser()->getIdentity()?->getId();
 
         if ($targetElement instanceof Entry && $targetElement->getIsDraft()) {
-            \Craft::$app->drafts->saveElementAsDraft($targetElement, TransMate::getInstance()->getSettings()->creatorId, 'Translated draft', $revisionNotes);
-        } elseif ($targetElement instanceof Entry && TransMate::getInstance()->getSettings()->saveMode === 'draft') {
-            $targetElement = \Craft::$app->drafts->createDraft($targetElement, TransMate::getInstance()->getSettings()->creatorId, 'Translated draft', $revisionNotes);
+            \Craft::$app->drafts->saveElementAsDraft($targetElement, $userId, 'Translated draft', $revisionNotes);
+        } elseif ($targetElement instanceof Entry && in_array($saveMode, ['draft', 'provisional'])) {
+            $targetElement = \Craft::$app->drafts->createDraft($targetElement, $userId, 'Translated draft', $revisionNotes, [], $saveMode==='provisional');
         } else {
             $targetElement->setRevisionNotes($revisionNotes);
             \Craft::$app->elements->saveElement($targetElement);

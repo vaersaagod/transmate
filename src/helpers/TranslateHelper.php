@@ -149,4 +149,48 @@ class TranslateHelper
         
         return true;
     }
+
+    public static function userCanTranslateElementToSites(Element $element):array
+    {
+        $currentUser = \Craft::$app->getUser()->getIdentity();
+        
+        $sites = \Craft::$app->getSites()->getAllSites();
+        $currentSite = \Craft::$app->getSites()->getSiteById($element->siteId);
+        $section = $element->section;
+
+        $allowedSites = [];
+        
+        if ($currentSite === null) {
+            return $allowedSites;
+        }
+        
+        foreach ($sites as $site) {
+            if (
+                self::areSitesInSameTranslationGroup($currentSite, $site) 
+                && ($currentUser && $currentUser->can('editSite:'.$currentSite->uid)) 
+                && ($section === null || in_array($currentSite->id, $section->getSiteIds(), true))
+            ) {
+                $allowedSites[] = $site;
+            }
+        }
+        
+        return $allowedSites;
+    }
+    
+    public static function areSitesInSameTranslationGroup($oneSite, $anotherSite): bool
+    {
+        $settings = TransMate::getInstance()->getSettings();
+        
+        if ($settings->translationGroups === null) {
+            return true;
+        }
+        
+        foreach ($settings->translationGroups as $group) {
+            if (in_array($oneSite->handle, $group, true) && in_array($anotherSite->handle, $group, true)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
 }

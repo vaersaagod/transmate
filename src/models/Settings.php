@@ -28,6 +28,8 @@ class Settings extends Model
     public array $autoTranslate = []; 
     public bool $autoTranslateDrafts = false; 
     
+    public ?array $translationGroups = null; 
+    
     /**
      * @param $values
      * @param $safeOnly

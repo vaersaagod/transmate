@@ -3,16 +3,23 @@
 namespace vaersaagod\transmate;
 
 use Craft;
+use craft\base\Element;
 use craft\base\Event;
 use craft\base\Model;
 use craft\base\Plugin;
 use craft\elements\Asset;
+use craft\elements\Entry;
+use craft\events\DefineHtmlEvent;
 use craft\events\ElementEvent;
+use craft\events\RegisterElementActionsEvent;
+use craft\events\RegisterUserPermissionsEvent;
 use craft\log\MonologTarget;
 use craft\services\Elements;
+use craft\services\UserPermissions;
 use Monolog\Formatter\LineFormatter;
 use Psr\Log\LogLevel;
 
+use vaersaagod\transmate\actions\TranslateTo;
 use vaersaagod\transmate\models\Settings;
 use vaersaagod\transmate\services\Translate;
 
@@ -61,18 +68,18 @@ class TransMate extends Plugin
 
         // Defer most setup tasks until Craft is fully initialized
         Craft::$app->onInit(function() {
+            if (Craft::$app->request->isCpRequest) {
+                Craft::$app->view->registerAssetBundle(TransMateBundle::class);
+            }
+            
             $this->attachEventHandlers();
             // ...
         });
     }
 
-    protected function createSettingsModel(): ?Model
-    {
-        return Craft::createObject(Settings::class);
-    }
-
     private function attachEventHandlers(): void
     {
+        // Auto translate handler
         if (!empty($this->getSettings()->autoTranslate)) {
             Event::on(Elements::class, Elements::EVENT_AFTER_SAVE_ELEMENT, function(ElementEvent $event) {
                 $element = $event->element;
@@ -88,7 +95,53 @@ class TransMate extends Plugin
                 }
             });
         }
+        
+        // User permissions
+        Event::on(
+            UserPermissions::class,
+            UserPermissions::EVENT_REGISTER_PERMISSIONS,
+            static function (RegisterUserPermissionsEvent $event) {
+                $event->permissions[] = [
+                    'heading' => 'TransMate',
+                    'permissions' => [
+                        'transmateCanTranslate' => [
+                            'label' => 'Can translate content',
+                        ],
+                    ],
+                ];
+            }
+        );
+        
+        // Sidebar panel
+        Event::on(
+            Entry::class,
+            Element::EVENT_DEFINE_SIDEBAR_HTML,
+            function(DefineHtmlEvent $event) {
+                $entry = $event->sender;
+                
+                // check if section/entry type is included or excluded
+                $template = Craft::$app->getView()->renderTemplate('transmate/sidebar-panel', [
+                    'entry' => $entry,
+                    'pluginSettings' => $this->getSettings()
+                ]);
+                $event->html .= $template;
+            }
+        );
+        
+        // Element action
+        Event::on(
+            Entry::class,
+            Element::EVENT_REGISTER_ACTIONS,
+            function(RegisterElementActionsEvent $event) {
+                $event->actions[] = TranslateTo::class;
+            }
+        );
+        
     }
 
+    protected function createSettingsModel(): ?Model
+    {
+        return Craft::createObject(Settings::class);
+    }
 
 }

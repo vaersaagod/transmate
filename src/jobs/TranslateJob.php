@@ -29,6 +29,11 @@ class TranslateJob extends BaseJob
      */
     public ?int $toSiteId = null;
     
+    /**
+     * @var null|string
+     */
+    public ?string $saveMode = null;
+    
 
     // Public Methods
     // =========================================================================
@@ -42,7 +47,7 @@ class TranslateJob extends BaseJob
         $fromSite = Craft::$app->sites->getSiteById($this->fromSiteId);
         $toSite = Craft::$app->sites->getSiteById($this->toSiteId);
         
-        TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite);
+        TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite, null, $this->saveMode);
     }
 
     // Protected Methods
