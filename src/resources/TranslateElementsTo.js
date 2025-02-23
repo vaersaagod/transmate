@@ -4,13 +4,12 @@
  * TranslateEntry js,
  * Based on Entry Mover (https://github.com/craftcms/cms/blob/80436653f2fad7a8b95b3b6e01d6ddec1ee2ffdf/src/web/assets/cp/src/js/EntryMover.js)
  */
-Craft.TranslateEntry = Garnish.Base.extend({
+Craft.TranslateElementsTo = Garnish.Base.extend({
     modal: null,
     cancelToken: null,
 
-    entryIds: null,
-    currentSectionUid: null,
-    elementIndex: null,
+    elementIds: null,
+    currentSiteId: null,
 
     sitesListContainer: null,
     sitesList: null,
@@ -19,17 +18,10 @@ Craft.TranslateEntry = Garnish.Base.extend({
     sitesSelect: null,
     saveModeSwitch: null,
 
-    init(entryIds, elementIndex) {
-        this.entryIds = entryIds;
-        this.elementIndex = elementIndex;
+    init(elementIds, siteId) {
+        this.elementIds = elementIds;
+        this.currentSiteId = siteId
 
-        // get uid of the section from which we're triggering this move;
-        let sourceKey = elementIndex.$source.data('key');
-        let sourceUid = null;
-        if (sourceKey.indexOf('section:') === 0) {
-            sourceUid = sourceKey.substring(8);
-        }
-        this.currentSectionUid = sourceUid;
         this.createModal();
     },
 
@@ -90,9 +82,8 @@ Craft.TranslateEntry = Garnish.Base.extend({
 
         Craft.sendActionRequest('POST', 'transmate/default/translate-to-site-modal-data', {
                 data: {
-                    entryIds: this.entryIds,
-                    siteId: this.elementIndex.siteId,
-                    currentSectionUid: this.currentSectionUid,
+                    elementIds: this.elementIds,
+                    siteId: this.currentSiteId,
                 },
                 cancelToken: this.cancelToken.token,
             })
@@ -169,12 +160,10 @@ Craft.TranslateEntry = Garnish.Base.extend({
             $siteIds.push(item.dataset.id);
         });
 
-        console.log(this.$sitesList.find('.checkbox[name="transmateSaveAsDraft"]')[0].checked);
-
         let data = {
-            siteId: this.elementIndex.siteId,
+            siteId: this.currentSiteId,
             siteIds: $siteIds,
-            entryIds: this.entryIds,
+            elementIds: this.elementIds,
             saveAsDraft: this.$sitesList.find('.checkbox[name="transmateSaveAsDraft"]')[0].checked ? 'yes' : 'no'
         };
         
@@ -190,11 +179,14 @@ Craft.TranslateEntry = Garnish.Base.extend({
                 this.modal.hide();
             })
             .catch((e) => {
-                Craft.cp.displayError(e?.response?.data?.message);
-                Craft.cp.announce(e?.response?.data?.message);
+                if (e.response !== undefined && e.response.data !== undefined) {
+                    Craft.cp.displayError(e.response.data.message);
+                    Craft.cp.announce(e.response.data.message);
+                }
             })
             .finally(() => {
                 this.$selectBtn.removeClass('loading');
+                this.modal.hide();
             });
     },
 

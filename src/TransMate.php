@@ -113,13 +113,14 @@ class TransMate extends Plugin
         );
         
         // Sidebar panel
+        /*
         Event::on(
             Entry::class,
             Element::EVENT_DEFINE_SIDEBAR_HTML,
             function(DefineHtmlEvent $event) {
                 $entry = $event->sender;
                 
-                // check if section/entry type is included or excluded
+                // TODO : check if section/entry type is included or excluded
                 $template = Craft::$app->getView()->renderTemplate('transmate/sidebar-panel', [
                     'entry' => $entry,
                     'pluginSettings' => $this->getSettings()
@@ -127,10 +128,30 @@ class TransMate extends Plugin
                 $event->html .= $template;
             }
         );
+        */
+        
+        // Buttons
+        Event::on(
+            Element::class,
+            Element::EVENT_DEFINE_ADDITIONAL_BUTTONS,
+            function(DefineHtmlEvent $event) {
+                $element = $event->sender;
+
+                $template = Craft::$app->getView()->renderTemplate('transmate/action-buttons', [
+                    'element' => $element,
+                    'pluginSettings' => $this->getSettings()
+                ]);
+                
+                $event->html .= $template;
+                
+                //if ($entry instanceof Entry) {
+                //}
+            }
+        );
         
         // Element action
         Event::on(
-            Entry::class,
+            Element::class,
             Element::EVENT_REGISTER_ACTIONS,
             function(RegisterElementActionsEvent $event) {
                 $event->actions[] = TranslateTo::class;

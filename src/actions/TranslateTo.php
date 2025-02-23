@@ -33,33 +33,21 @@ class TranslateTo extends ElementAction
      */
     public function getTriggerHtml(): ?string
     {
-        //if ($this->elementType !== Entry::class) {
-        //    throw new Exception("Move to section is only available for Entries.");
-        //}
-
         Craft::$app->getView()->registerJsWithVars(fn($type) => <<<JS
 (() => {
     new Craft.ElementActionTrigger({
         type: $type,
         bulk: true,
         validateSelection: (selectedItems, elementIndex) => {
-            
-            /*
-          for (let i = 0; i < selectedItems.length; i++) {
-            if (!Garnish.hasAttr(selectedItems.eq(i).find('.element'), 'data-movable')) {
-              return false;
-            }
-          }*/
-          
           return true;
         },
         activate: (selectedItems, elementIndex) => {
-          let entryIds = [];
+          let elementIds = [];
           for (let i = 0; i < selectedItems.length; i++) {
-            entryIds.push(selectedItems.eq(i).find('.element').data('id'));
+            elementIds.push(selectedItems.eq(i).find('.element').data('id'));
           }
-
-          new Craft.TranslateEntry(entryIds, elementIndex);
+          
+          new Craft.TranslateElementsTo(elementIds, elementIndex.siteId);
         },
     });
 })();

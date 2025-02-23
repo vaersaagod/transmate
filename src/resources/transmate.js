@@ -1,5 +1,65 @@
 $(document).ready(
     function() {
+        if ($('[data-transmate-action]').length > 0) {
+            
+            function translateFrom(elementId, elementSiteId, fromSiteId) {
+                const data = {
+                    elementId,
+                    elementSiteId,
+                    fromSiteId
+                };
+                
+                //$button.addClass('loading');
+
+                Craft.sendActionRequest(
+                        'POST',
+                        'transmate/default/translate-from-site',
+                        {
+                            data
+                        }
+                    )
+                    .then(() => {
+                        window.location.reload();
+                    })
+                    .catch(({ response }) => {
+                        Craft.cp.displayError(response.message || response.data.message);
+                    })
+                    .catch(error => {
+                        console.error(error);
+                    })
+                    .then(() => {
+                        //$button.removeClass('loading');
+                    });
+            }
+
+            function translateTo(elementId, elementSiteId) {
+                new Craft.TranslateElementsTo([elementId], elementSiteId);
+            }
+            
+            $('[data-transmate-action]').on('click', function(e) {
+                const $target = $(e.currentTarget);
+                const action = $target.data('transmate-action');
+                
+                if (action === 'translateFrom') {
+                    const elementId = $target.data('element-id');
+                    const siteId = $target.data('current-site-id');
+                    const fromSiteId = $target.data('from-site-id');
+                    
+                    translateFrom(elementId, siteId, fromSiteId);
+                }
+                
+                if (action === 'translateTo') {
+                    const elementId = $target.data('element-id');
+                    const siteId = $target.data('current-site-id');
+                    
+                    translateTo(elementId, siteId);
+                }
+                
+                
+            });
+        }
+        
+        /*
         if ($('[data-transmate-sidebar]').length > 0) {
             const $sidebar = $('[data-transmate-sidebar]');
             const $button = $sidebar.find('[data-transmate-sidebar-submit]');
@@ -114,5 +174,6 @@ $(document).ready(
             });
 
         }
+         */
     }
 );

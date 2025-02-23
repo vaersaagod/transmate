@@ -1,0 +1,42 @@
+{% set allowedSites = create('vaersaagod\\transmate\\helpers\\TranslateHelper').userCanTranslateElementToSites(element) %}
+
+{% if currentUser.can('transmateCanTranslate') and allowedSites|length > 1 %}
+
+    {% set actionMenuItems = [] %}
+    
+    {% for allowedSite in allowedSites %}
+
+        {% if allowedSite.id != element.siteId %}
+            {% set actionMenuItems = actionMenuItems|merge([
+                {
+                    label: 'Translate from'|t('app') ~ ' ' ~ allowedSite.name,
+                    attributes: {
+                        data: { 'transmate-action': 'translateFrom', 'element-id': element.id, 'current-site-id': element.siteId, 'from-site-id': allowedSite.id },
+                    }
+                }
+            ]) %}
+        {% endif %}
+        
+    {% endfor %}
+    
+    {% set actionMenuItems = actionMenuItems|merge([
+        {
+            label: 'Translate to...'|t('app'),
+            attributes: {
+                data: { 'transmate-action': 'translateTo', 'element-id': element.id, 'current-site-id': element.siteId },
+            }
+        }
+    ]) %}
+    
+    {{ disclosureMenu(actionMenuItems, {
+        buttonLabel: 'Translate'|t('transmate'),
+        buttonAttributes: {
+            class: [],
+            title: 'Translate'|t('transmate'),
+            data: {
+                'disclosure-trigger': true,
+            },
+        },
+    }) }}
+
+{% endif %}

@@ -8,6 +8,7 @@ use craft\base\FieldInterface;
 use craft\base\Model;
 
 use craft\elements\db\EntryQuery;
+use craft\enums\PropagationMethod;
 use vaersaagod\transmate\translators\TranslatorInterface;
 use vaersaagod\transmate\TransMate;
 
@@ -41,15 +42,20 @@ class MatrixProcessor extends Model implements ProcessorInterface
         
         $r = [];
         $c = 0;
-        
+                 
         /** @var \craft\elements\Entry $block */
         foreach ($this->originalValue->all() as $block) {
             $translatedBlock = TransMate::getInstance()->translate->translateElement($block, $this->source->site, $this->target->site, $translator->toLanguage);
-
+            
             if ($translatedBlock) {
-                // TBD: We always create new blocks... Maybe not?
-                // Yep, does not work when blocks are actually propagated to other sites.
-                $r['new:'.++$c] = [
+                // If the uid for the translated block is the same, we keep it, if not, create a new.
+                if ($block->uid === $translatedBlock->uid) {
+                    $id = $block->id;
+                } else {
+                    $id = 'new:'.++$c;
+                }
+                
+                $r[$id] = [
                     'type' => $block->type->handle,
                     'title' => $translatedBlock->title,
                     'fields' => $translatedBlock->serializedFieldValues

@@ -50,6 +50,7 @@ class ElementHelper
                 // But this probably means that an element can be duplicated and translated for a
                 // section that doesn't propagate. In whichcase there will be duplicates if it's
                 // done more than once. More of a cave-at and/or feature, than a bug? 
+                
                 $targetElement = \Craft::$app->elements->duplicateElement($element, ['siteId' => $site->id]);
             }
         }

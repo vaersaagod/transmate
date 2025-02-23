@@ -156,7 +156,9 @@ class TranslateHelper
         
         $sites = \Craft::$app->getSites()->getAllSites();
         $currentSite = \Craft::$app->getSites()->getSiteById($element->siteId);
-        $section = $element->section;
+        
+        
+        $section = $element->section ?? null;
 
         $allowedSites = [];
         

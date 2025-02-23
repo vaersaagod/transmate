@@ -4,6 +4,7 @@ namespace vaersaagod\transmate\controllers;
 
 use craft\elements\Entry;
 use craft\helpers\Cp;
+use craft\services\Elements;
 use craft\web\Controller;
 
 use vaersaagod\transmate\helpers\TranslateHelper;
@@ -22,8 +23,53 @@ class DefaultController extends Controller
     public function actionTranslateFromSite()
     {
         $this->requireCpRequest();
+
+        $elementId = (int)$this->request->getRequiredParam('elementId');
+        $elementSiteId = (int)$this->request->getRequiredParam('elementSiteId');
+        $fromSiteId = $this->request->getParam('fromSiteId');
+
+        $currentSite = \Craft::$app->getSites()->getSiteById($elementSiteId);
+        $fromSite = \Craft::$app->getSites()->getSiteById($fromSiteId);
+
+        if ($currentSite === null) {
+            throw new NotFoundHttpException("Current site with ID $elementSiteId not found");
+        }
+
+        if ($fromSite === null) {
+            throw new NotFoundHttpException("From site with ID $fromSiteId not found");
+        }
+
+        $element = \Craft::$app->getElements()->getElementById($elementId, null, $fromSite->id);
+        
+        if ($element instanceof Entry) {
+            // TODO : Skal denne hente current draft eller no?
+            $fromElement = Entry::find()->id($elementId)->siteId($fromSite->id)->status(null)->one();
+        } else {
+            $fromElement = $element;
+        }
+        
+        if ($fromElement === null) {
+            throw new NotFoundHttpException("Element not found");
+        }
+
+        $translatedElement = TransMate::getInstance()->translate->translateElement($fromElement, $fromSite, $currentSite, null, 'provisional');
+
+        if ($translatedElement !== null) {
+            $successMessage = \Craft::t('transmate', 'Element translated!');
+            $this->setSuccessFlash($successMessage);
+
+            \Craft::$app->getSession()->broadcastToJs([
+                'event' => 'saveElement',
+                'id' => $elementId,
+            ]);
+
+            return $this->asSuccess($successMessage);
+        }
+        
+        return $this->asFailure(\Craft::t('transmate', 'An error occurred when trying to translate element.'));
     }
 
+    /*
     public function actionSidebarTranslate()
     {
         $this->requireCpRequest();
@@ -107,24 +153,25 @@ class DefaultController extends Controller
             []
         ));
     }
+    */
 
     public function actionTranslateElementsToSites(): ?Response
     {
         $this->requireCpRequest();
 
         $fromSiteId = (int)$this->request->getRequiredParam('siteId');
-        $entryIds = $this->request->getRequiredParam('entryIds');
+        $elementIds = $this->request->getRequiredParam('elementIds');
         $siteIds = $this->request->getRequiredParam('siteIds');
         $saveAsDraft = $this->request->getRequiredParam('saveAsDraft') === 'yes';
 
         $queue = \Craft::$app->getQueue();
         $jobCount = 0;
 
-        foreach ($entryIds as $entryId) {
+        foreach ($elementIds as $elementId) {
             foreach ($siteIds as $toSiteId) {
                 $jobId = $queue->push(new TranslateJob([
                     'description' => \Craft::t('transmate', 'Translating content'),
-                    'elementId' => $entryId,
+                    'elementId' => $elementId,
                     'fromSiteId' => $fromSiteId,
                     'toSiteId' => $toSiteId,
                     'saveMode' => $saveAsDraft ? 'draft' : 'current',
@@ -145,19 +192,25 @@ class DefaultController extends Controller
     {
         $this->requireCpRequest();
 
-        $entryIds = $this->request->getRequiredParam('entryIds');
+        $elementIds = $this->request->getRequiredParam('elementIds');
         $siteId = (int)$this->request->getRequiredParam('siteId');
-        $currentSectionUid = $this->request->getRequiredParam('currentSectionUid');
 
         $user = \Craft::$app->getUser()->getIdentity();
         $sites = \Craft::$app->getSites()->getAllSites();
         $currentSite = \Craft::$app->getSites()->getSiteById($siteId);
-        $section = \Craft::$app->getEntries()->getSectionByUid($currentSectionUid);
+        
+        $element = \Craft::$app->getElements()->getElementById($elementIds[0]);
+        
+        if ($element instanceof Entry) {
+            $section = $element->section;
+        } else {
+            $section = null;
+        }
 
         $allowedSites = [];
 
         foreach ($sites as $site) {
-            if ($user->can('editSite:'.$site->uid) && TranslateHelper::areSitesInSameTranslationGroup($currentSite, $site) && in_array($site->id, $section->getSiteIds(), true)) {
+            if ($user->can('editSite:'.$site->uid) && TranslateHelper::areSitesInSameTranslationGroup($currentSite, $site) && ($section === null || in_array($site->id, $section->getSiteIds(), true))) {
                 $allowedSites[] = $site;
             }
         }
