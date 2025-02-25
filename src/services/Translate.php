@@ -7,6 +7,7 @@ use craft\base\Component;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\elements\Asset;
+use craft\i18n\I18N;
 use craft\models\Site;
 use vaersaagod\transmate\helpers\ElementHelper;
 use vaersaagod\transmate\helpers\TranslateHelper;
@@ -61,7 +62,8 @@ class Translate extends Component
 
         // If saving as draft, ensure we are working with a draft
         if ($saveAsDraft && !$targetElement->getIsDraft()) {
-            $targetElement = Craft::$app->drafts->createDraft($targetElement, $userId, provisional: $saveMode === 'provisional');
+            $name = 'Translation from "'.(Craft::$app->getI18n()->getLocaleById($fromSite->getLocale()->getLanguageID())->displayName).'" to "'.(Craft::$app->getI18n()->getLocaleById($language)->displayName).'"';
+            $targetElement = Craft::$app->drafts->createDraft($targetElement, $userId, $name, provisional: $saveMode === 'provisional');
         }
 
         // Create translator
