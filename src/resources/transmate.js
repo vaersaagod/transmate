@@ -41,7 +41,7 @@ $(document).ready(
                 const action = $target.data('transmate-action');
                 
                 if (action === 'translateFrom') {
-                    const elementId = $target.data('element-id');
+                    const elementId = $('#main-form').data('elementEditor').settings.elementId;
                     const siteId = $target.data('current-site-id');
                     const fromSiteId = $target.data('from-site-id');
                     
@@ -49,7 +49,7 @@ $(document).ready(
                 }
                 
                 if (action === 'translateTo') {
-                    const elementId = $target.data('element-id');
+                    const elementId = $('#main-form').data('elementEditor').settings.elementId;
                     const siteId = $target.data('current-site-id');
                     
                     translateTo(elementId, siteId);

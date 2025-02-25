@@ -26,7 +26,7 @@ class DefaultController extends Controller
 
         $elementId = (int)$this->request->getRequiredParam('elementId');
         $elementSiteId = (int)$this->request->getRequiredParam('elementSiteId');
-        $fromSiteId = $this->request->getParam('fromSiteId');
+        $fromSiteId = (int)$this->request->getParam('fromSiteId');
 
         $currentSite = \Craft::$app->getSites()->getSiteById($elementSiteId);
         $fromSite = \Craft::$app->getSites()->getSiteById($fromSiteId);
@@ -39,14 +39,7 @@ class DefaultController extends Controller
             throw new NotFoundHttpException("From site with ID $fromSiteId not found");
         }
 
-        $element = \Craft::$app->getElements()->getElementById($elementId, null, $fromSite->id);
-        
-        if ($element instanceof Entry) {
-            // TODO : Skal denne hente current draft eller no?
-            $fromElement = Entry::find()->id($elementId)->siteId($fromSite->id)->status(null)->one();
-        } else {
-            $fromElement = $element;
-        }
+        $fromElement = \Craft::$app->getElements()->getElementById($elementId, null, $fromSite->id);
         
         if ($fromElement === null) {
             throw new NotFoundHttpException("Element not found");

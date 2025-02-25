@@ -7,7 +7,6 @@ use craft\base\Component;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\elements\Asset;
-use craft\elements\Entry;
 use craft\models\Site;
 use vaersaagod\transmate\helpers\ElementHelper;
 use vaersaagod\transmate\helpers\TranslateHelper;
@@ -47,19 +46,24 @@ class Translate extends Component
         if ($language === null) {
             $language = $toSite->getLocale()->getLanguageID();
         }
-        
-        if ($saveMode === null) {
-            $saveMode = TransMate::getInstance()->getSettings()->saveMode;
-        }
+
+        $saveMode = $saveMode ?? TransMate::getInstance()->getSettings()->saveMode;
+        $saveAsDraft = in_array($saveMode, ['draft', 'provisional'], true);
+        $userId = Craft::$app->getUser()->getIdentity()?->getId();
 
         $targetElement = ElementHelper::getTargetEntry($element, $toSite);
-        
+
         if (TransMate::getInstance()->getSettings()->disableTranslationProperty !== null && isset($targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) && $targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) {
             // TBD: Klassisk dilemma, skal jeg returnere null her? Eller f.eks targetElement uendret? Eller noe annet? 
             // return null;
             return $targetElement;
         }
-        
+
+        // If saving as draft, ensure we are working with a draft
+        if ($saveAsDraft && !$targetElement->getIsDraft()) {
+            $targetElement = Craft::$app->drafts->createDraft($targetElement, $userId, provisional: $saveMode === 'provisional');
+        }
+
         // Create translator
         $translator = $this->getTranslator();
 
@@ -71,12 +75,11 @@ class Translate extends Component
         $translator->toLanguage = $language;
 
         $translatableContent = TranslateHelper::getTranslatableContentFromElement($element, $targetElement);
-        //Craft::dd($translatableContent);
         $translatableContent->translate($translator);
-        
+
         foreach ($translatableContent->fields as $handle => $processor) {
             /** @var $processor ProcessorInterface */
-            
+
             if ($handle === 'title') { // Handling native field "title"
                 $targetElement->title = $processor->getValue();
             } elseif ($handle === 'alt' && $targetElement instanceof Asset) { // Handling native field "alt", but only for assets.
@@ -85,24 +88,15 @@ class Translate extends Component
                 $targetElement->setFieldValue($handle, $processor->getValue());
             }
         }
-        
-        // Handling slug
-        if (TranslateHelper::shouldTranslateSlug($element) && $translatableContent->hasFieldWithHandle('title')) { 
-            $targetElement->slug = null;
-        }
-        
-        $revisionNotes = 'Translated from "'.$fromSite->name.'" ('.$fromSite->getLocale()->getLanguageID().')';
-        
-        $userId = Craft::$app->getUser()->getIdentity()?->getId();
 
-        if ($targetElement instanceof Entry && $targetElement->getIsDraft()) {
-            \Craft::$app->drafts->saveElementAsDraft($targetElement, $userId, 'Translated draft', $revisionNotes);
-        } elseif ($targetElement instanceof Entry && in_array($saveMode, ['draft', 'provisional'])) {
-            $targetElement = \Craft::$app->drafts->createDraft($targetElement, $userId, 'Translated draft', $revisionNotes, [], $saveMode==='provisional');
-        } else {
-            $targetElement->setRevisionNotes($revisionNotes);
-            \Craft::$app->elements->saveElement($targetElement);
+        // Handling slug
+        if (TranslateHelper::shouldTranslateSlug($element) && $translatableContent->hasFieldWithHandle('title')) {
+            $targetElement->slug = \craft\helpers\ElementHelper::generateSlug($targetElement->title);
         }
+
+        $revisionNotes = 'Translated from "'.$fromSite->name.'" ('.$fromSite->getLocale()->getLanguageID().')';
+        $targetElement->setRevisionNotes($revisionNotes);
+        \Craft::$app->elements->saveElement($targetElement);
 
         return $targetElement;
     }
@@ -110,7 +104,7 @@ class Translate extends Component
     public function maybeAutoTranslate(ElementInterface $element): void
     {
         $settings = TransMate::getInstance()->getSettings();
-        
+
         if ($element instanceof Asset && $element->getScenario() === Asset::SCENARIO_INDEX) {
             return;
         }
@@ -124,21 +118,20 @@ class Translate extends Component
         }
 
         /** @var \vaersaagod\transmate\models\AutoTranslateSettings $autoTranslateSettings */
-        foreach ($settings->autoTranslate as $autoTranslateSettings)
-        {
+        foreach ($settings->autoTranslate as $autoTranslateSettings) {
             $fromSite = is_string($autoTranslateSettings->fromSite) ? Craft::$app->sites->getSiteByHandle($autoTranslateSettings->fromSite) : Craft::$app->sites->getSiteById($autoTranslateSettings->fromSite);
             $toSites = !is_array($autoTranslateSettings->toSite) ? [$autoTranslateSettings->toSite] : $autoTranslateSettings->toSite;
             $elementType = $autoTranslateSettings->elementType;
             $criteria = $autoTranslateSettings->criteria;
-            
+
             if ($fromSite === null || $element->siteId !== $fromSite->id) {
                 continue;
             }
-            
+
             if (!($element instanceof $elementType)) {
                 continue;
             }
-            
+
             if ($criteria) {
                 /** @var \craft\db\Query $query */
                 $query = $elementType::find();
@@ -156,25 +149,25 @@ class Translate extends Component
                     continue;
                 }
             }
-            
+
             // We're good, create jobs
-            
+
             /** @var Site $toSite */
             foreach ($toSites as $toSiteIdOrHandle) {
                 $queue = Craft::$app->getQueue();
                 $toSite = is_string($toSiteIdOrHandle) ? Craft::$app->sites->getSiteByHandle($toSiteIdOrHandle) : Craft::$app->sites->getSiteById($toSiteIdOrHandle);
-                
+
                 if ($toSite === null) {
                     continue;
                 }
-                
+
                 $jobId = $queue->push(new TranslateJob([
                     'description' => Craft::t('transmate', 'Translating content'),
                     'elementId' => $element->id,
                     'fromSiteId' => $fromSite->id,
                     'toSiteId' => $toSite->id
                 ]));
-                
+
                 Craft::info("Created transform job with ID $jobId for element with ID $element->id from site with ID $fromSite->id to site with ID $toSite->id", __METHOD__);
             }
         }
@@ -183,20 +176,20 @@ class Translate extends Component
     public function getTranslator(): ?BaseTranslator
     {
         $translator = TransMate::getInstance()->getSettings()->translator;
-        
+
         if (empty($translator)) {
             return null;
         }
-        
+
         if ($translator === 'deepl') {
             return new DeepLTranslator(TransMate::getInstance()->getSettings()->translatorConfig[$translator] ?? null);
-        } 
-        
+        }
+
         if ($translator === 'openai') {
             return new OpenAITranslator(TransMate::getInstance()->getSettings()->translatorConfig[$translator] ?? null);
         }
-        
+
         return null;
     }
-    
+
 }

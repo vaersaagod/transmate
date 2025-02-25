@@ -13,7 +13,7 @@ class ElementHelper
     public static function getTargetEntry(Element $element, Site $site): Element
     {
         $targetElement = \Craft::$app->elements->getElementById($element->id, null, $site->id);
-
+        
         if ($targetElement === null) {
             if ($element instanceof Entry && $element->sectionId !== null && $element->section->propagationMethod === PropagationMethod::Custom) {
                 // The section has custom propagation, ie "Let each entry choose...".
