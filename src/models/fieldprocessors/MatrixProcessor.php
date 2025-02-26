@@ -41,23 +41,18 @@ class MatrixProcessor extends Model implements ProcessorInterface
         }
         
         $r = [];
-        $c = 0;
                  
         /** @var \craft\elements\Entry $block */
-        foreach ($this->originalValue->all() as $block) {
-            $translatedBlock = TransMate::getInstance()->translate->translateElement($block, $this->source->site, $this->target->site, $translator->toLanguage);
+        foreach ($this->originalValue->status(null)->all() as $block) {
+            $translatedBlock = TransMate::getInstance()->translate->translateElement($block, $this->source->site, $this->target->site, $translator->toLanguage, saveElement: false);
             
             if ($translatedBlock) {
-                // If the uid for the translated block is the same, we keep it, if not, create a new.
-                if ($block->uid === $translatedBlock->uid) {
-                    $id = $block->id;
-                } else {
-                    $id = 'new:'.++$c;
-                }
-                
+                $id = $translatedBlock->id;
+
                 $r[$id] = [
                     'type' => $block->type->handle,
                     'title' => $translatedBlock->title,
+                    'enabled' => $translatedBlock->enabled,
                     'fields' => $translatedBlock->serializedFieldValues
                 ];
             }   

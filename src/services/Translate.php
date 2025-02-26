@@ -42,12 +42,9 @@ class Translate extends Component
      * @throws \yii\base\Exception
      * @throws \yii\base\InvalidConfigException
      */
-    public function translateElement(Element $element, Site $fromSite, Site $toSite, ?string $language = null, ?string $saveMode = null): ?Element
+    public function translateElement(Element $element, Site $fromSite, Site $toSite, ?string $language = null, ?string $saveMode = null, bool $saveElement = true): ?Element
     {
-        if ($language === null) {
-            $language = $toSite->getLocale()->getLanguageID();
-        }
-
+        $language = $language ?? $toSite->getLocale()->getLanguageID();
         $saveMode = $saveMode ?? TransMate::getInstance()->getSettings()->saveMode;
         $saveAsDraft = in_array($saveMode, ['draft', 'provisional'], true);
         $userId = Craft::$app->getUser()->getIdentity()?->getId();
@@ -81,7 +78,7 @@ class Translate extends Component
 
         foreach ($translatableContent->fields as $handle => $processor) {
             /** @var $processor ProcessorInterface */
-
+            
             if ($handle === 'title') { // Handling native field "title"
                 $targetElement->title = $processor->getValue();
             } elseif ($handle === 'alt' && $targetElement instanceof Asset) { // Handling native field "alt", but only for assets.
@@ -96,9 +93,12 @@ class Translate extends Component
             $targetElement->slug = \craft\helpers\ElementHelper::generateSlug($targetElement->title);
         }
 
-        $revisionNotes = 'Translated from "'.$fromSite->name.'" ('.$fromSite->getLocale()->getLanguageID().')';
-        $targetElement->setRevisionNotes($revisionNotes);
-        \Craft::$app->elements->saveElement($targetElement);
+        if ($saveElement) {
+            $revisionNotes = 'Translated from "'.$fromSite->name.'" ('.$fromSite->getLocale()->getLanguageID().')';
+            $targetElement->setRevisionNotes($revisionNotes);
+
+            \Craft::$app->elements->saveElement($targetElement);
+        }
 
         return $targetElement;
     }
