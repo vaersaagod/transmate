@@ -44,7 +44,7 @@ class MatrixProcessor extends Model implements ProcessorInterface
                  
         /** @var \craft\elements\Entry $block */
         foreach ($this->originalValue->status(null)->all() as $block) {
-            $translatedBlock = TransMate::getInstance()->translate->translateElement($block, $this->source->site, $this->target->site, $translator->toLanguage, saveElement: false);
+            $translatedBlock = TransMate::getInstance()->translate->translateElement($block, $this->source->site, $this->target->site, $translator->toLanguage, saveElement: false, owner: $this->target);
             
             if ($translatedBlock) {
                 $id = $translatedBlock->id;

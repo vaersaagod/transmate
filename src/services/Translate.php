@@ -42,14 +42,14 @@ class Translate extends Component
      * @throws \yii\base\Exception
      * @throws \yii\base\InvalidConfigException
      */
-    public function translateElement(Element $element, Site $fromSite, Site $toSite, ?string $language = null, ?string $saveMode = null, bool $saveElement = true): ?Element
+    public function translateElement(Element $element, Site $fromSite, Site $toSite, ?string $language = null, ?string $saveMode = null, bool $saveElement = true, ?Element $owner=null): ?Element
     {
         $language = $language ?? $toSite->getLocale()->getLanguageID();
         $saveMode = $saveMode ?? TransMate::getInstance()->getSettings()->saveMode;
         $saveAsDraft = in_array($saveMode, ['draft', 'provisional'], true);
         $userId = Craft::$app->getUser()->getIdentity()?->getId();
 
-        $targetElement = ElementHelper::getTargetEntry($element, $toSite);
+        $targetElement = ElementHelper::getTargetEntry($element, $toSite, $owner);
 
         if (TransMate::getInstance()->getSettings()->disableTranslationProperty !== null && isset($targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) && $targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) {
             // TBD: Klassisk dilemma, skal jeg returnere null her? Eller f.eks targetElement uendret? Eller noe annet? 

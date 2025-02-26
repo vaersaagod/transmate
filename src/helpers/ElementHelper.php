@@ -10,7 +10,7 @@ use craft\models\Site;
 class ElementHelper
 {
     
-    public static function getTargetEntry(Element $element, Site $site): Element
+    public static function getTargetEntry(Element $element, Site $site, ?Element $owner=null): Element
     {
         $targetElement = \Craft::$app->elements->getElementById($element->id, null, $site->id);
         
@@ -38,15 +38,20 @@ class ElementHelper
                 
             } elseif ($element instanceof Entry && $element->sectionId !== null && $element->section->propagationMethod === PropagationMethod::All) {
                 // Should have been there, let's just propagate it now.
+                // Catches instances where the section might have changed propagation method and entries haven't been resaved. 
+                
                 $targetElement = \Craft::$app->elements->propagateElement($element, $site->id, false);
                 
             } else {
                 // Duplicates element to new site. Which is necessary for nested entries to work.
-                // But this probably means that an element can be duplicated and translated for a
-                // section that doesn't propagate. In whichcase there will be duplicates if it's
-                // done more than once. More of a cave-at and/or feature, than a bug?
+                // Also enables an element to be duplicated and translated for a section that doesn't propagate.
+                // In whichcase there will be duplicates if it's done more than once. It's a cave-at and/or feature, not a bug.
+                // We need to set owner and primary owner here to avoid these being set to entries in different sites
+                // for nested entries in sections/fields that don't propagate.
+                // And we need to set ownerId to null when the owner is a draft, because Craft has to figure it out itself.
+                // Mats think there be dragons here. I'm super positive. 
                 
-                $targetElement = \Craft::$app->elements->duplicateElement($element, ['siteId' => $site->id]);
+                $targetElement = \Craft::$app->elements->duplicateElement($element, ['siteId' => $site->id, 'ownerId' => $owner && !$owner->getIsDraft() ? $owner->id : null, 'primaryOwnerId' => $owner?->id]);
             }
         }
 

@@ -45,7 +45,7 @@ class CKEditorProcessor extends Model implements ProcessorInterface
         
         foreach ($this->originalValue->getChunks(false) as $chunk) {
             if ($chunk instanceof \craft\ckeditor\data\Entry) {
-                $translatedEntry = TransMate::getInstance()->translate->translateElement($chunk->entry, $this->source->site, $this->target->site, $translator->toLanguage);
+                $translatedEntry = TransMate::getInstance()->translate->translateElement($chunk->entry, $this->source->site, $this->target->site, $translator->toLanguage, owner: $this->target);
                 
                 if ($translatedEntry) {
                     $newPieces[] = '<craft-entry data-entry-id="'.$translatedEntry->id.'">$nbsp;</craft-entry>';
