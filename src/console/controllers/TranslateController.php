@@ -23,6 +23,7 @@ class TranslateController extends Controller
     public null|string|int $section = null;
     public string $language = '';
     public null|string $since = null;
+    public bool $asDraft = false;
 
     /**
      * @param $actionID
@@ -39,6 +40,7 @@ class TranslateController extends Controller
         $options[] = 'toSite';
         $options[] = 'language';
         $options[] = 'since';
+        $options[] = 'asDraft';
 
         return $options;
     }
@@ -86,7 +88,7 @@ class TranslateController extends Controller
                     return ExitCode::UNSPECIFIED_ERROR;
                 }
 
-                $translatedElement = TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite, $language);
+                $translatedElement = TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite, $language, $this->asDraft ? 'draft' : 'current');
 
                 if ($translatedElement === null) {
                     $this->stderr("Element could not be translated.".PHP_EOL.PHP_EOL, BaseConsole::FG_RED);
@@ -99,7 +101,7 @@ class TranslateController extends Controller
                 $elements = Entry::find()->section($this->section)->status(null)->siteId($fromSite->id)->all();
 
                 foreach ($elements as $element) {
-                    $translatedElement = TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite, $language);
+                    $translatedElement = TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite, $language, $this->asDraft ? 'draft' : 'current');
 
                     if ($translatedElement === null) {
                         $this->stderr("Element `$element->title` could not be translated.".PHP_EOL, BaseConsole::FG_RED);
