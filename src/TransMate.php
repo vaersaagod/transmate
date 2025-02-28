@@ -4,22 +4,35 @@ namespace vaersaagod\transmate;
 
 use Craft;
 use craft\base\Element;
+use craft\base\ElementInterface;
 use craft\base\Event;
+use craft\base\Field;
+use craft\base\FieldLayoutElement;
 use craft\base\Model;
 use craft\base\Plugin;
 use craft\elements\Asset;
 use craft\elements\Entry;
+use craft\events\CreateFieldLayoutFormEvent;
+use craft\events\DefineFieldHtmlEvent;
 use craft\events\DefineHtmlEvent;
 use craft\events\ElementEvent;
 use craft\events\RegisterElementActionsEvent;
 use craft\events\RegisterUserPermissionsEvent;
+use craft\events\TemplateEvent;
+use craft\fieldlayoutelements\BaseField;
+use craft\fieldlayoutelements\CustomField;
+use craft\fieldlayoutelements\entries\EntryTitleField;
 use craft\log\MonologTarget;
+use craft\models\FieldLayout;
+use craft\models\FieldLayoutTab;
 use craft\services\Elements;
 use craft\services\UserPermissions;
+use craft\web\View;
 use Monolog\Formatter\LineFormatter;
 use Psr\Log\LogLevel;
 
 use vaersaagod\transmate\actions\TranslateTo;
+use vaersaagod\transmate\helpers\TranslateHelper;
 use vaersaagod\transmate\models\Settings;
 use vaersaagod\transmate\services\Translate;
 
@@ -29,7 +42,7 @@ use vaersaagod\transmate\services\Translate;
  * @method static TransMate getInstance()
  * @method Settings getSettings()
  *
- * @property  Translate    $translate
+ * @property  Translate $translate
  *
  * @property-read Settings $settings
  */
@@ -37,7 +50,7 @@ class TransMate extends Plugin
 {
     public string $schemaVersion = '1.0.0';
     public bool $hasCpSettings = false;
-    
+
     public array $translatedElements = [];
 
     public static function config(): array
@@ -67,11 +80,11 @@ class TransMate extends Plugin
         ]);
 
         // Defer most setup tasks until Craft is fully initialized
-        Craft::$app->onInit(function() {
+        Craft::$app->onInit(function () {
             if (Craft::$app->request->isCpRequest) {
                 Craft::$app->view->registerAssetBundle(TransMateBundle::class);
             }
-            
+
             $this->attachEventHandlers();
             // ...
         });
@@ -81,21 +94,21 @@ class TransMate extends Plugin
     {
         // Auto translate handler
         if (!empty($this->getSettings()->autoTranslate)) {
-            Event::on(Elements::class, Elements::EVENT_AFTER_SAVE_ELEMENT, function(ElementEvent $event) {
+            Event::on(Elements::class, Elements::EVENT_AFTER_SAVE_ELEMENT, function (ElementEvent $event) {
                 $element = $event->element;
                 $key = $element->id . '__' . $element->siteId;
-                
+
                 if ($element->propagating || $element->resaving) { // Only trigger for the original site saved
                     return;
                 }
-                
+
                 if (!isset($this->translatedElements[$key])) {
                     $this->translatedElements[$key] = true;
                     TransMate::getInstance()->translate->maybeAutoTranslate($element);
                 }
             });
         }
-        
+
         // User permissions
         Event::on(
             UserPermissions::class,
@@ -111,7 +124,7 @@ class TransMate extends Plugin
                 ];
             }
         );
-        
+
         // Sidebar panel
         /*
         Event::on(
@@ -129,35 +142,52 @@ class TransMate extends Plugin
             }
         );
         */
-        
+
         // Buttons
         Event::on(
             Element::class,
             Element::EVENT_DEFINE_ADDITIONAL_BUTTONS,
-            function(DefineHtmlEvent $event) {
+            function (DefineHtmlEvent $event) {
                 $element = $event->sender;
 
                 $template = Craft::$app->getView()->renderTemplate('transmate/action-buttons', [
                     'element' => $element,
                     'pluginSettings' => $this->getSettings()
                 ]);
-                
+
                 $event->html .= $template;
-                
+
                 //if ($entry instanceof Entry) {
                 //}
             }
         );
-        
+
         // Element action
         Event::on(
             Element::class,
             Element::EVENT_REGISTER_ACTIONS,
-            function(RegisterElementActionsEvent $event) {
+            function (RegisterElementActionsEvent $event) {
                 $event->actions[] = TranslateTo::class;
             }
         );
-        
+
+        // Monkey-patch in translate field actions
+        // Hope that https://github.com/craftcms/cms/discussions/16779 is added
+        Event::on(
+            FieldLayout::class,
+            FieldLayout::EVENT_CREATE_FORM,
+            static function (CreateFieldLayoutFormEvent $event) {
+                if ($event->static) {
+                    return;
+                }
+                foreach ($event->tabs as $tab) {
+                    if (empty($tab->elements)) {
+                        return;
+                    }
+                    $tab->elements = array_map([TranslateHelper::class, 'getTranslatableFieldLayoutElement'], $tab->elements);
+                }
+            }
+        );
     }
 
     protected function createSettingsModel(): ?Model

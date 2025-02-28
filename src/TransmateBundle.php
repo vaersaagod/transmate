@@ -16,6 +16,7 @@ class TransmateBundle extends AssetBundle
 
         $this->js = [
             'TranslateElementsTo.js',
+            'TranslateFieldModal.js',
             'transmate.js',
         ];
 

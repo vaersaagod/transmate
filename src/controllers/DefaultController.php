@@ -2,8 +2,16 @@
 
 namespace vaersaagod\transmate\controllers;
 
+use Craft;
+use craft\base\Element;
+use craft\base\ElementInterface;
 use craft\elements\Entry;
+use craft\fieldlayoutelements\BaseField;
+use craft\fieldlayoutelements\CustomField;
 use craft\helpers\Cp;
+use craft\helpers\ElementHelper;
+use craft\helpers\Html;
+use craft\helpers\UrlHelper;
 use craft\services\Elements;
 use craft\web\Controller;
 
@@ -11,8 +19,10 @@ use vaersaagod\transmate\helpers\TranslateHelper;
 use vaersaagod\transmate\jobs\TranslateJob;
 use vaersaagod\transmate\TransMate;
 
+use yii\web\BadRequestHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
+use yii\web\ServerErrorHttpException;
 
 class DefaultController extends Controller
 {
@@ -227,6 +237,93 @@ class DefaultController extends Controller
         ]);
 
         return $this->asJson(['listHtml' => $listHtml]);
+    }
+
+    public function actionTranslateFieldFromSite(): Response
+    {
+        $this->requireCpRequest();
+
+        $elementId = (int)$this->request->getRequiredBodyParam('elementId');
+        $siteId = (int)$this->request->getRequiredBodyParam('siteId');
+        $element = \Craft::$app->getElements()->getElementById($elementId, siteId: $siteId);
+
+        if (!$element || $element->getIsRevision()) {
+            throw new BadRequestHttpException('No element was identified by the request.');
+        }
+
+        $fromSiteId = (int)$this->request->getRequiredBodyParam('fromSiteId');
+        $fromSite = Craft::$app->getSites()->getSiteById($fromSiteId);
+        if (!$fromSite) {
+            throw new BadRequestHttpException("Invalid site ID: $fromSiteId");
+        }
+
+        $fromElement = Craft::$app->getElements()->getElementById($elementId, $element::class, $fromSite->id);
+        if ($fromElement === null) {
+            throw new NotFoundHttpException("Element not found");
+        }
+
+        $layoutElementUid = $this->request->getRequiredBodyParam('layoutElementUid');
+        $layoutElement = $element->getFieldLayout()->getElementByUid($layoutElementUid);
+        if (!$layoutElement instanceof BaseField) {
+            throw new BadRequestHttpException("Invalid layout element UUID: $layoutElementUid");
+        }
+        if ($layoutElement instanceof CustomField) {
+            $fieldHandle = $layoutElement->getField()->handle;
+        } else {
+            $fieldHandle = $layoutElement->attribute();
+        }
+
+        // Make sure we are dealing with a provisional draft
+        if (!$element->getIsDraft()) {
+            $element = Craft::$app->drafts->createDraft($element, Craft::$app->getUser()->getIdentity()?->getId(), provisional: true);
+        }
+
+        $translatedElement = TransMate::getInstance()->translate->translateElement(
+            $fromElement,
+            $fromSite,
+            $element->getSite(),
+            saveMode: 'provisional',
+            attributes: [$fieldHandle],
+        );
+
+        $namespace = $this->request->getBodyParam('namespace');
+
+        $view = $this->getView();
+        $html = $view->namespaceInputs(fn() => $layoutElement->formHtml($translatedElement), $namespace);
+
+        if ($html) {
+            $html = Html::modifyTagAttributes($html, [
+                'data' => [
+                    'layout-element' => $layoutElement->uid,
+                ],
+            ]);
+        }
+
+        Craft::$app->getSession()->broadcastToJs([
+            'event' => 'saveElement',
+            'id' => $element->id,
+        ]);
+
+        $label = $this->request->getBodyParam('layoutElementLabel');
+        if ($label) {
+            $message = Craft::t('transmate', '{label} translated.', ['label' => $label]);
+        } else {
+            $message = Craft::t('transmate', 'Field translated.');
+        }
+
+        return $this->asSuccess(
+            $message,
+            [
+                'fieldHtml' => $html,
+                'headHtml' => $view->getHeadHtml(),
+                'bodyHtml' => $view->getBodyHtml(),
+            ],
+            $this->getPostedRedirectUrl($translatedElement),
+            [
+                'details' => Cp::elementChipHtml($translatedElement),
+            ]
+        );
+
     }
 
 }

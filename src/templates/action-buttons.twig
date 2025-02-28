@@ -1,9 +1,9 @@
 {% set allowedSites = create('vaersaagod\\transmate\\helpers\\TranslateHelper').userCanTranslateElementToSites(element) %}
 
-{% if currentUser.can('transmateCanTranslate') and allowedSites|length > 1 %}
+{% if allowedSites|length > 1 %}
 
     {% set actionMenuItems = [] %}
-    
+
     {% for allowedSite in allowedSites %}
 
         {% if allowedSite.id != element.siteId %}
@@ -16,9 +16,9 @@
                 }
             ]) %}
         {% endif %}
-        
+
     {% endfor %}
-    
+
     {% set actionMenuItems = actionMenuItems|merge([
         {
             label: 'Translate to...'|t('app'),
@@ -27,7 +27,7 @@
             }
         }
     ]) %}
-    
+
     {{ disclosureMenu(actionMenuItems, {
         buttonLabel: 'Translate'|t('transmate'),
         buttonAttributes: {

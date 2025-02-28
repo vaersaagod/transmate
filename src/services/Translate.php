@@ -30,19 +30,21 @@ class Translate extends Component
 {
 
     /**
-     * @param \craft\base\Element $element
-     * @param \craft\models\Site  $fromSite
-     * @param \craft\models\Site  $toSite
-     * @param string|null         $language
-     * @param string|null         $saveMode
-     *
-     * @return \craft\base\Element|null
+     * @param Element $element
+     * @param Site $fromSite
+     * @param Site $toSite
+     * @param string|null $language
+     * @param string|null $saveMode
+     * @param bool $saveElement
+     * @param Element|null $owner
+     * @param array|null $attributes
+     * @return Element|null
+     * @throws InvalidConfigException
      * @throws \Throwable
      * @throws \craft\errors\ElementNotFoundException
      * @throws \yii\base\Exception
-     * @throws \yii\base\InvalidConfigException
      */
-    public function translateElement(Element $element, Site $fromSite, Site $toSite, ?string $language = null, ?string $saveMode = null, bool $saveElement = true, ?Element $owner=null): ?Element
+    public function translateElement(Element $element, Site $fromSite, Site $toSite, ?string $language = null, ?string $saveMode = null, bool $saveElement = true, ?Element $owner = null, ?array $attributes = null): ?Element
     {
         $language = $language ?? $toSite->getLocale()->getLanguageID();
         $saveMode = $saveMode ?? TransMate::getInstance()->getSettings()->saveMode;
@@ -50,6 +52,8 @@ class Translate extends Component
         $userId = Craft::$app->getUser()->getIdentity()?->getId();
 
         $targetElement = ElementHelper::getTargetEntry($element, $toSite, $owner);
+
+        Craft::info("Giraff: " . $targetElement->title . ' ' . ($targetElement->isProvisionalDraft ? 'provisional' : 'not provisional'), __METHOD__);
 
         if (TransMate::getInstance()->getSettings()->disableTranslationProperty !== null && isset($targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) && $targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) {
             // TBD: Klassisk dilemma, skal jeg returnere null her? Eller f.eks targetElement uendret? Eller noe annet? 
@@ -73,7 +77,7 @@ class Translate extends Component
         $translator->fromLanguage = $fromSite->getLocale()->getLanguageID();
         $translator->toLanguage = $language;
 
-        $translatableContent = TranslateHelper::getTranslatableContentFromElement($element, $targetElement);
+        $translatableContent = TranslateHelper::getTranslatableContentFromElement($element, $targetElement, $attributes);
         $translatableContent->translate($translator);
 
         foreach ($translatableContent->fields as $handle => $processor) {

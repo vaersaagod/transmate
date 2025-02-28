@@ -2,16 +2,25 @@
 
 namespace vaersaagod\transmate\helpers;
 
+use Craft;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\base\Field;
+use craft\base\FieldLayoutElement;
 use craft\elements\Asset;
 use craft\elements\Entry;
+use craft\fieldlayoutelements\CustomField;
+use craft\fieldlayoutelements\entries\EntryTitleField;
 use craft\fields\Link;
 use craft\fields\Matrix;
 use craft\fields\PlainText;
 use craft\fields\Table;
+use craft\helpers\StringHelper;
 use craft\models\Site;
+
+use Illuminate\Support\Collection;
+
+use Psy\Util\Json;
 
 use vaersaagod\transmate\models\fieldprocessors\MatrixProcessor;
 use vaersaagod\transmate\TransMate;
@@ -24,15 +33,15 @@ use vaersaagod\transmate\models\TranslatableContent;
 class TranslateHelper
 {
 
-    public static function getTranslatableContentFromElement(Element $element, ?Element $targetElement): TranslatableContent
+    public static function getTranslatableContentFromElement(Element $element, ?Element $targetElement, ?array $attributes = null): TranslatableContent
     {
         $translatableContent = new TranslatableContent();
         
-        if (self::shouldTranslateTitle($element)) {
+        if (self::shouldTranslateTitle($element) && ($attributes === null || in_array('title', $attributes))) {
             $translatableContent->addField('title', new PlainTextProcessor(['field' => null, 'originalValue' => $element->title]));
         }
         
-        if ($element instanceof Asset && $element->alt && $element->getVolume()->altTranslationMethod !== 'none') {
+        if ($element instanceof Asset && $element->alt && $element->getVolume()->altTranslationMethod !== 'none' && ($attributes === null || in_array('alt', $attributes))) {
             $translatableContent->addField('alt', new PlainTextProcessor(['field' => null, 'originalValue' => $element->alt]));
         }
         
@@ -41,7 +50,7 @@ class TranslateHelper
         foreach ($element->fieldLayout->getCustomFields() as $field) {
             $translatableField = $field->translationMethod !== Field::TRANSLATION_METHOD_NONE;
             
-            if (in_array($field->handle, $excludedFields, true)) {
+            if (in_array($field->handle, $excludedFields, true) || ($attributes !== null && !in_array($field->handle, $attributes, true))) {
                 continue;
             }
             
@@ -150,15 +159,29 @@ class TranslateHelper
         return true;
     }
 
-    public static function userCanTranslateElementToSites(Element $element):array
+    public static function userCanTranslateElementToSites(?ElementInterface $element):array
     {
-        $currentUser = \Craft::$app->getUser()->getIdentity();
+        if (empty($element)) {
+            return [];
+        }
+
+        $currentUser = Craft::$app->getUser()->getIdentity();
+        if (!$currentUser?->can('transmateCanTranslate')) {
+            return [];
+        }
         
-        $sites = \Craft::$app->getSites()->getAllSites();
-        $currentSite = \Craft::$app->getSites()->getSiteById($element->siteId);
-        
-        
-        $section = $element->section ?? null;
+        $sites = Craft::$app->getSites()->getAllSites();
+        $currentSite = Craft::$app->getSites()->getSiteById($element->siteId);
+
+        // If this is an entry, get the section and make sure the user is at least allowed to create drafts in that section
+        $section = null;
+        if ($element instanceof Entry && $section = $element->getRootOwner()->getSection()) {
+            if (!$currentUser->can('viewEntries:' . $section->uid)) {
+                return [];
+            }
+        }
+
+        // TODO Check necessary permissions for other element types?
 
         $allowedSites = [];
         
@@ -169,7 +192,7 @@ class TranslateHelper
         foreach ($sites as $site) {
             if (
                 self::areSitesInSameTranslationGroup($currentSite, $site) 
-                && ($currentUser && $currentUser->can('editSite:'.$currentSite->uid)) 
+                && ($currentUser->can('editSite:'.$currentSite->uid))
                 && ($section === null || in_array($currentSite->id, $section->getSiteIds(), true))
             ) {
                 $allowedSites[] = $site;
@@ -194,5 +217,109 @@ class TranslateHelper
         }
         
         return false;
+    }
+
+    public static function getTranslatableFieldLayoutElement(FieldLayoutElement $fieldLayoutElement): FieldLayoutElement
+    {
+        if ($fieldLayoutElement instanceof CustomField) {
+            return new class($fieldLayoutElement->field, $fieldLayoutElement->getAttributes()) extends CustomField {
+                public function actionMenuItems(?ElementInterface $element = null, bool $static = false): array
+                {
+                    $actionMenuItems = parent::actionMenuItems($element, $static);
+                    if ($static || !$this->getIsTransmateTranslatable($element)) {
+                        return $actionMenuItems;
+                    }
+                    $translateFieldAction = TranslateHelper::getTranslateFieldAction($this, $element);
+                    return array_filter([
+                        $translateFieldAction,
+                        !empty($translateFieldAction && !empty($actionMenuItems)) ? ['type' => 'hr'] : null,
+                        ...$actionMenuItems,
+                    ]);
+                }
+
+                protected function getIsTransmateTranslatable(?ElementInterface $element = null, bool $static = false): bool
+                {
+                    if ($this->getField() instanceof Matrix) {
+                        return true;
+                    }
+                    return parent::translatable($element, $static);
+                }
+
+                public function getLabel(): ?string
+                {
+                    return parent::showLabel() ? parent::label() : null;
+                }
+            };
+        } else if ($fieldLayoutElement instanceof EntryTitleField) {
+            return new class($fieldLayoutElement->getAttributes()) extends EntryTitleField {
+                public function actionMenuItems(?ElementInterface $element = null, bool $static = false): array
+                {
+                    $actionMenuItems = parent::actionMenuItems($element, $static);
+                    if ($static || !parent::translatable($element)) {
+                        return $actionMenuItems;
+                    }
+                    $translateFieldAction = TranslateHelper::getTranslateFieldAction($this, $element);
+                    return array_filter([
+                        $translateFieldAction,
+                        !empty($translateFieldAction && !empty($actionMenuItems)) ? ['type' => 'hr'] : null,
+                        ...$actionMenuItems,
+                    ]);
+                }
+
+                public function getLabel(): ?string
+                {
+                    return parent::showLabel() ? parent::label() : null;
+                }
+            };
+        }
+
+        return $fieldLayoutElement;
+    }
+
+    public static function getTranslateFieldAction(FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): array
+    {
+        // TODO account for disableTranslationProperty so that the translate field action isn't added to unsupported fields
+
+        $translateFromSites = Collection::make(TranslateHelper::userCanTranslateElementToSites($element))
+            ->where('id', '!=', $element->siteId)
+            ->map(static fn (Site $site) => ['id' => $site->id, 'name' => $site->name])
+            ->values()
+            ->all();
+        if (empty($translateFromSites)) {
+            return [];
+        }
+
+        // prepare namespace for the purpose of translating
+        $namespace = Craft::$app->getView()->getNamespace();
+        $label = $fieldLayoutElement->getLabel() ?? null;
+
+        $js = <<<JS
+            Garnish.\$bod.on('click', '[data-transmate-field-translate]', (ev) => {
+                const \$target = \$(ev.currentTarget);
+                const \$field = \$target
+                    .closest('.menu')
+                    .data('disclosureMenu')
+                    ?.\$trigger.closest('.field');
+                new Craft.TranslateFieldModal(\$target, \$field);
+            });
+        JS;
+        Craft::$app->getView()->registerJs($js);
+
+        return [
+            'icon' => 'language',
+            'label' => Craft::t('transmate', 'Translate from site…'),
+            'attributes' => [
+                'data' => [
+                    'transmate-field-translate' => true,
+                    'element-id' => $element->id,
+                    'sites' => Json::encode($translateFromSites),
+                    'layout-element' => $fieldLayoutElement->uid,
+                    'label' => $label,
+                    'namespace' => ($namespace && $namespace !== 'fields')
+                        ? StringHelper::removeRight($namespace, '[fields]')
+                        : null,
+                ],
+            ],
+        ];
     }
 }
