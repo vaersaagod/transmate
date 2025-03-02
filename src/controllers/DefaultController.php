@@ -273,11 +273,6 @@ class DefaultController extends Controller
             $fieldHandle = $layoutElement->attribute();
         }
 
-        // Make sure we are dealing with a provisional draft
-        if (!$element->getIsDraft()) {
-            $element = Craft::$app->drafts->createDraft($element, Craft::$app->getUser()->getIdentity()?->getId(), provisional: true);
-        }
-
         $translatedElement = TransMate::getInstance()->translate->translateElement(
             $fromElement,
             $fromSite,

@@ -53,8 +53,6 @@ class Translate extends Component
 
         $targetElement = ElementHelper::getTargetEntry($element, $toSite, $owner);
 
-        Craft::info("Giraff: " . $targetElement->title . ' ' . ($targetElement->isProvisionalDraft ? 'provisional' : 'not provisional'), __METHOD__);
-
         if (TransMate::getInstance()->getSettings()->disableTranslationProperty !== null && isset($targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) && $targetElement->{TransMate::getInstance()->getSettings()->disableTranslationProperty}) {
             // TBD: Klassisk dilemma, skal jeg returnere null her? Eller f.eks targetElement uendret? Eller noe annet? 
             // return null;

@@ -98,8 +98,8 @@ Craft.TranslateFieldModal = Garnish.Base.extend({
 
                 $newField.find('input:visible,textarea:visible').first().focus();
 
-                await this.editor.checkForm();
-                this.editor.initForProvisionalDraft();
+                //await this.editor.checkForm();
+                //this.editor.initForProvisionalDraft();
 
                 Craft.cp.displaySuccess(message);
             } finally {
