@@ -7,8 +7,8 @@ use craft\base\Component;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\elements\Asset;
-use craft\i18n\I18N;
 use craft\models\Site;
+
 use vaersaagod\transmate\helpers\ElementHelper;
 use vaersaagod\transmate\helpers\TranslateHelper;
 use vaersaagod\transmate\jobs\TranslateJob;
@@ -17,6 +17,7 @@ use vaersaagod\transmate\translators\BaseTranslator;
 use vaersaagod\transmate\translators\DeepLTranslator;
 use vaersaagod\transmate\translators\OpenAITranslator;
 use vaersaagod\transmate\TransMate;
+
 use yii\base\InvalidConfigException;
 
 /**
@@ -49,7 +50,7 @@ class Translate extends Component
         $language = $language ?? $toSite->getLocale()->getLanguageID();
         $saveMode = $saveMode ?? TransMate::getInstance()->getSettings()->saveMode;
         $saveAsDraft = in_array($saveMode, ['draft', 'provisional'], true);
-        $userId = Craft::$app->getUser()->getIdentity()?->getId();
+        $userId = TranslateHelper::currentUser()?->id;
 
         $targetElement = ElementHelper::getTargetEntry($element, $toSite, $owner);
 
@@ -59,17 +60,18 @@ class Translate extends Component
             return $targetElement;
         }
 
+        // Create translator
+        $translator = $this->getTranslator();
+        if ($translator === null) {
+            throw new InvalidConfigException('Translator could not be created.');
+        }
+
         // If saving as draft, ensure we are working with a draft
         if ($saveAsDraft && !$targetElement->getIsDraft()) {
             $name = 'Translation from "'.(Craft::$app->getI18n()->getLocaleById($fromSite->getLocale()->getLanguageID())->displayName).'" to "'.(Craft::$app->getI18n()->getLocaleById($language)->displayName).'"';
-            $targetElement = Craft::$app->drafts->createDraft($targetElement, $userId, $name, provisional: $saveMode === 'provisional');
-        }
-
-        // Create translator
-        $translator = $this->getTranslator();
-
-        if ($translator === null) {
-            throw new InvalidConfigException('Translator could not be created.');
+            $draft = Craft::$app->drafts->createDraft($targetElement, $userId, $name, provisional: $saveMode === 'provisional');
+            $draft->setCanonical($targetElement);
+            $targetElement = $draft;
         }
 
         $translator->fromLanguage = $fromSite->getLocale()->getLanguageID();
@@ -99,7 +101,7 @@ class Translate extends Component
             $revisionNotes = 'Translated from "'.$fromSite->name.'" ('.$fromSite->getLocale()->getLanguageID().')';
             $targetElement->setRevisionNotes($revisionNotes);
 
-            \Craft::$app->elements->saveElement($targetElement);
+            Craft::$app->elements->saveElement($targetElement);
         }
 
         return $targetElement;

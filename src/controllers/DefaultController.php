@@ -6,6 +6,7 @@ use Craft;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\elements\Entry;
+use craft\elements\User;
 use craft\fieldlayoutelements\BaseField;
 use craft\fieldlayoutelements\CustomField;
 use craft\helpers\Cp;
@@ -71,92 +72,6 @@ class DefaultController extends Controller
         
         return $this->asFailure(\Craft::t('transmate', 'An error occurred when trying to translate element.'));
     }
-
-    /*
-    public function actionSidebarTranslate()
-    {
-        $this->requireCpRequest();
-
-        $type = $this->request->getRequiredParam('type');
-        $entryId = (int)$this->request->getRequiredParam('entryId');
-        $entrySiteId = (int)$this->request->getRequiredParam('entrySiteId');
-        $fromSiteHandle = $this->request->getParam('fromSiteHandle');
-        $toSiteHandles = $this->request->getParam('toSiteHandles');
-        $saveAsDraft = $this->request->getParam('saveAsDraft') === '1';
-
-        $currentSite = \Craft::$app->getSites()->getSiteById($entrySiteId);
-
-        if ($currentSite === null) {
-            throw new NotFoundHttpException("Site with ID $entrySiteId not found");
-        }
-
-        if ($type === 'translateFrom') {
-            $fromSite = \Craft::$app->getSites()->getSiteByHandle($fromSiteHandle);
-
-            if ($fromSite === null) {
-                throw new NotFoundHttpException("Site with handle $fromSiteHandle not found");
-            }
-
-            $fromEntry = Entry::find()->id($entryId)->siteId($fromSite->id)->status(null)->one();
-
-            if ($fromEntry === null) {
-                throw new NotFoundHttpException("Entry not found");
-            }
-
-            $translatedEntry = TransMate::getInstance()->translate->translateElement($fromEntry, $fromSite, $currentSite, null, 'provisional');
-
-            if ($translatedEntry !== null) {
-                $successMessage = \Craft::t('transmate', 'Entry translated!');
-                $this->setSuccessFlash($successMessage);
-
-                \Craft::$app->getSession()->broadcastToJs([
-                    'event' => 'saveElement',
-                    'id' => $entryId,
-                ]);
-
-                return $this->asSuccess($successMessage);
-            } else {
-                return $this->asFailure(\Craft::t('transmate', 'An error occurred when trying to translate entry.'));
-            }
-        }
-
-        if ($type === 'translateTo') {
-            $queue = \Craft::$app->getQueue();
-            $jobCount = 0;
-
-            foreach ($toSiteHandles as $toSiteHandle) {
-                $toSite = \Craft::$app->getSites()->getSiteByHandle($toSiteHandle);
-
-                if ($toSite === null) {
-                    throw new NotFoundHttpException("Site with handle $toSiteHandle not found");
-                }
-
-                $jobId = $queue->push(new TranslateJob([
-                    'description' => \Craft::t('transmate', 'Translating content'),
-                    'elementId' => $entryId,
-                    'fromSiteId' => $entrySiteId,
-                    'toSiteId' => $toSite->id,
-                    'saveMode' => $saveAsDraft ? 'draft' : 'current',
-                ]));
-
-                $jobCount += 1;
-            }
-
-            return $this->asSuccess(\Craft::t(
-                'transmate',
-                'Entry has been queued for translation to {count} sites.',
-                ['count' => $jobCount]
-            ));
-        }
-
-
-        return $this->asFailure(\Craft::t(
-            'transmate',
-            'Unknown translate type.',
-            []
-        ));
-    }
-    */
 
     public function actionTranslateElementsToSites(): ?Response
     {
@@ -273,13 +188,27 @@ class DefaultController extends Controller
             $fieldHandle = $layoutElement->attribute();
         }
 
-        $translatedElement = TransMate::getInstance()->translate->translateElement(
-            $fromElement,
-            $fromSite,
-            $element->getSite(),
-            saveMode: 'provisional',
-            attributes: [$fieldHandle],
-        );
+        // TODO maybe translateElement() itself should be wrapped in a transaction.
+        // Would save us a lot of trouble in cases where something fails, somewhere.
+        $transaction = Craft::$app->getDb()->beginTransaction();
+
+        try {
+            $translatedElement = TransMate::getInstance()->translate->translateElement(
+                $fromElement,
+                $fromSite,
+                $element->getSite(),
+                saveMode: 'provisional',
+                attributes: [$fieldHandle],
+            );
+
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            Craft::error($e, __METHOD__);
+            $transaction->rollBack();
+            return $this->asFailure(
+                message: $e->getMessage() // TODO would be cool with friendlier error messages
+            );
+        }
 
         $namespace = $this->request->getBodyParam('namespace');
 
@@ -294,11 +223,6 @@ class DefaultController extends Controller
             ]);
         }
 
-        Craft::$app->getSession()->broadcastToJs([
-            'event' => 'saveElement',
-            'id' => $element->id,
-        ]);
-
         $label = $this->request->getBodyParam('layoutElementLabel');
         if ($label) {
             $message = Craft::t('transmate', '{label} translated.', ['label' => $label]);
@@ -312,6 +236,14 @@ class DefaultController extends Controller
                 'fieldHtml' => $html,
                 'headHtml' => $view->getHeadHtml(),
                 'bodyHtml' => $view->getBodyHtml(),
+                'canonicalId' => $translatedElement->getCanonicalId(),
+                'elementId' => $translatedElement->id,
+                'draftId' => $translatedElement->draftId,
+                'timestamp' => Craft::$app->getFormatter()->asTimestamp($translatedElement->dateUpdated, 'short', true),
+                'creator' => $translatedElement->getCreator()?->getName(),
+                'draftName' => $translatedElement->draftName,
+                'draftNotes' => $translatedElement->draftNotes,
+                'modifiedAttributes' => $element->getModifiedAttributes(),
             ],
             $this->getPostedRedirectUrl($translatedElement),
             [

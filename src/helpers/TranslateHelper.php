@@ -9,6 +9,7 @@ use craft\base\Field;
 use craft\base\FieldLayoutElement;
 use craft\elements\Asset;
 use craft\elements\Entry;
+use craft\elements\User;
 use craft\fieldlayoutelements\CustomField;
 use craft\fieldlayoutelements\entries\EntryTitleField;
 use craft\fields\Link;
@@ -165,7 +166,7 @@ class TranslateHelper
             return [];
         }
 
-        $currentUser = Craft::$app->getUser()->getIdentity();
+        $currentUser = self::currentUser();
         if (!$currentUser?->can('transmateCanTranslate')) {
             return [];
         }
@@ -312,6 +313,7 @@ class TranslateHelper
                 'data' => [
                     'transmate-field-translate' => true,
                     'element-id' => $element->id,
+                    'site-id' => $element->siteId,
                     'sites' => Json::encode($translateFromSites),
                     'layout-element' => $fieldLayoutElement->uid,
                     'label' => $label,
@@ -321,5 +323,17 @@ class TranslateHelper
                 ],
             ],
         ];
+    }
+
+    /**
+     * Returns the currently logged-in user.
+     *
+     * @param bool $autoRenew
+     * @return User|null
+     * @throws \Throwable
+     */
+    public static function currentUser(bool $autoRenew = true): ?User
+    {
+        return Craft::$app->getUser()->getIdentity($autoRenew);
     }
 }

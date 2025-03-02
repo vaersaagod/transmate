@@ -68,7 +68,20 @@ Craft.TranslateFieldModal = Garnish.Base.extend({
             $submitBtn.addClass('loading');
             Craft.cp.announce(Craft.t('app', 'Loading'));
 
-            await this.editor.checkForm();
+            if (this.editor) {
+                await this.editor.checkForm();
+                this.editor.savingDraft = true;
+            }
+
+            let elementId;
+            let siteId;
+            if (this.editor) {
+                elementId = this.editor.getDraftElementId($btn.data('element-id'));
+                siteId = this.editor.settings.siteId;
+            } else {
+                elementId = $btn.data('element-id');
+                siteId = $btn.data('site-id');
+            }
 
             try {
                 const response = await Craft.sendActionRequest(
@@ -76,8 +89,8 @@ Craft.TranslateFieldModal = Garnish.Base.extend({
                     'transmate/default/translate-field-from-site',
                     {
                         data: {
-                            elementId: this.editor.getDraftElementId($btn.data('element-id')),
-                            siteId: this.editor.settings.siteId,
+                            elementId,
+                            siteId,
                             fromSiteId: parseInt($siteSelect.val()),
                             layoutElementUid: $btn.data('layout-element'),
                             layoutElementLabel: $btn.data('label'),
@@ -86,7 +99,16 @@ Craft.TranslateFieldModal = Garnish.Base.extend({
                     }
                 );
 
-                const {fieldHtml, headHtml, bodyHtml, message} = response.data;
+                const {
+                    fieldHtml,
+                    headHtml,
+                    bodyHtml,
+                    message
+                } = response.data;
+
+                if (this.editor) {
+                    this.editor._handleSaveDraftResponse(response);
+                }
 
                 const $newField = $(fieldHtml);
                 $field.replaceWith($newField);
@@ -98,14 +120,17 @@ Craft.TranslateFieldModal = Garnish.Base.extend({
 
                 $newField.find('input:visible,textarea:visible').first().focus();
 
-                //await this.editor.checkForm();
-                //this.editor.initForProvisionalDraft();
-
                 Craft.cp.displaySuccess(message);
+            } catch (error) {
+                Craft.cp.displayError(error.response.data.message || null);
             } finally {
                 $submitBtn.removeClass('loading');
                 Craft.cp.announce(Craft.t('app', 'Loading complete'));
                 modal.hide();
+
+                if (this.editor) {
+                    this.editor.savingDraft = false;
+                }
             }
         });
     }
