@@ -28,7 +28,7 @@ class DeepLTranslator extends BaseTranslator
     {
         // TODO : Add more options for format etc
         $translator = new \DeepL\Translator($this->config->apiKey);
-        $result = $translator->translateText($content, self::$sourceCountryCodeLUM[$this->fromLanguage] ?? $this->fromLanguage, self::$targetCountryCodeLUM[$this->toLanguage] ?? $this->toLanguage);
+        $result = $translator->translateText($content, self::$sourceCountryCodeLUM[$this->fromLanguage] ?? $this->fromLanguage, self::$targetCountryCodeLUM[$this->toLanguage] ?? $this->toLanguage, $this->config->options);
 
         return $result->text;
     }

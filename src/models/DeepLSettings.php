@@ -8,6 +8,7 @@ use craft\base\Model;
 class DeepLSettings extends Model
 {
     public string $apiKey = '';
+    public array $options = [];
     
     /**
      * @param $values
