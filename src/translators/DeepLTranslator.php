@@ -2,6 +2,7 @@
 
 namespace vaersaagod\transmate\translators;
 
+use craft\web\View;
 use vaersaagod\transmate\models\DeepLSettings;
 use vaersaagod\transmate\TransMate;
 
@@ -26,9 +27,14 @@ class DeepLTranslator extends BaseTranslator
 
     public function translate(string $content, array $params = []): mixed
     {
-        // TODO : Add more options for format etc
+        $options = $this->config->options;
+        
+        if (isset($options['context'])) {
+            $options['context'] = \Craft::$app->getView()->renderString($options['context']);
+        }
+
         $translator = new \DeepL\Translator($this->config->apiKey);
-        $result = $translator->translateText($content, self::$sourceCountryCodeLUM[$this->fromLanguage] ?? $this->fromLanguage, self::$targetCountryCodeLUM[$this->toLanguage] ?? $this->toLanguage, $this->config->options);
+        $result = $translator->translateText($content, self::$sourceCountryCodeLUM[$this->fromLanguage] ?? $this->fromLanguage, self::$targetCountryCodeLUM[$this->toLanguage] ?? $this->toLanguage, $options);
 
         return $result->text;
     }

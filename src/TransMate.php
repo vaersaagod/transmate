@@ -125,24 +125,6 @@ class TransMate extends Plugin
             }
         );
 
-        // Sidebar panel
-        /*
-        Event::on(
-            Entry::class,
-            Element::EVENT_DEFINE_SIDEBAR_HTML,
-            function(DefineHtmlEvent $event) {
-                $entry = $event->sender;
-                
-                // TODO : check if section/entry type is included or excluded
-                $template = Craft::$app->getView()->renderTemplate('transmate/sidebar-panel', [
-                    'entry' => $entry,
-                    'pluginSettings' => $this->getSettings()
-                ]);
-                $event->html .= $template;
-            }
-        );
-        */
-
         // Buttons
         Event::on(
             Element::class,
@@ -156,9 +138,6 @@ class TransMate extends Plugin
                 ]);
 
                 $event->html .= $template;
-
-                //if ($entry instanceof Entry) {
-                //}
             }
         );
 
