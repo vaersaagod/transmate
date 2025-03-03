@@ -3,6 +3,7 @@
 namespace vaersaagod\transmate;
 
 use Craft;
+use craft\elements\User;
 use Monolog\Formatter\LineFormatter;
 use Psr\Log\LogLevel;
 use craft\base\Element;
@@ -133,6 +134,10 @@ class TransMate extends Plugin
             function (DefineHtmlEvent $event) {
                 $element = $event->sender;
 
+                if ($element instanceof User) {
+                    return;
+                }
+                
                 $template = Craft::$app->getView()->renderTemplate('transmate/action-buttons', [
                     'element' => $element,
                     'pluginSettings' => $this->getSettings()
