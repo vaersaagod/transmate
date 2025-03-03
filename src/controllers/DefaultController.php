@@ -6,6 +6,7 @@ use Craft;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\elements\Entry;
+use craft\elements\GlobalSet;
 use craft\elements\User;
 use craft\fieldlayoutelements\BaseField;
 use craft\fieldlayoutelements\CustomField;
@@ -51,7 +52,7 @@ class DefaultController extends Controller
         }
 
         $fromElement = \Craft::$app->getElements()->getElementById($elementId, null, $fromSite->id);
-        
+
         if ($fromElement === null) {
             throw new NotFoundHttpException("Element not found");
         }
@@ -69,7 +70,7 @@ class DefaultController extends Controller
 
             return $this->asSuccess($successMessage);
         }
-        
+
         return $this->asFailure(\Craft::t('transmate', 'An error occurred when trying to translate element.'));
     }
 
@@ -116,9 +117,9 @@ class DefaultController extends Controller
         $user = \Craft::$app->getUser()->getIdentity();
         $sites = \Craft::$app->getSites()->getAllSites();
         $currentSite = \Craft::$app->getSites()->getSiteById($siteId);
-        
+
         $element = \Craft::$app->getElements()->getElementById($elementIds[0]);
-        
+
         if ($element instanceof Entry) {
             $section = $element->section;
         } else {
@@ -206,6 +207,7 @@ class DefaultController extends Controller
         } catch (\Throwable $e) {
             Craft::error($e, __METHOD__);
             $transaction->rollBack();
+
             return $this->asFailure(
                 message: $e->getMessage() // TODO would be cool with friendlier error messages
             );
@@ -231,27 +233,33 @@ class DefaultController extends Controller
             $message = Craft::t('transmate', 'Field translated.');
         }
 
-        return $this->asSuccess(
-            $message,
-            [
-                'fieldHtml' => $html,
-                'headHtml' => $view->getHeadHtml(),
-                'bodyHtml' => $view->getBodyHtml(),
-                'canonicalId' => $translatedElement->getCanonicalId(),
-                'elementId' => $translatedElement->id,
-                'draftId' => $translatedElement->draftId,
-                'timestamp' => Craft::$app->getFormatter()->asTimestamp($translatedElement->dateUpdated, 'short', true),
+        $data = [
+            'fieldHtml' => $html,
+            'headHtml' => $view->getHeadHtml(),
+            'bodyHtml' => $view->getBodyHtml(),
+            'canonicalId' => $translatedElement->getCanonicalId(),
+            'elementId' => $translatedElement->id,
+            'draftId' => $translatedElement->draftId,
+            'timestamp' => Craft::$app->getFormatter()->asTimestamp($translatedElement->dateUpdated, 'short', true),
+            'modifiedAttributes' => $element->getModifiedAttributes(),
+        ];
+        
+        if ($translatedElement->getIsDraft()) {
+            $data += [
                 'creator' => $translatedElement->getCreator()?->getName(),
                 'draftName' => $translatedElement->draftName,
                 'draftNotes' => $translatedElement->draftNotes,
-                'modifiedAttributes' => $element->getModifiedAttributes(),
-            ],
+            ];
+        }
+
+        return $this->asSuccess(
+            $message,
+            $data,
             $this->getPostedRedirectUrl($translatedElement),
             [
                 'details' => Cp::elementChipHtml($translatedElement),
             ]
         );
-
     }
 
 }

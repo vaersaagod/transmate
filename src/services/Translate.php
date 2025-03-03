@@ -7,6 +7,7 @@ use craft\base\Component;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\elements\Asset;
+use craft\elements\GlobalSet;
 use craft\models\Site;
 
 use vaersaagod\transmate\helpers\ElementHelper;
@@ -31,14 +32,15 @@ class Translate extends Component
 {
 
     /**
-     * @param Element $element
-     * @param Site $fromSite
-     * @param Site $toSite
-     * @param string|null $language
-     * @param string|null $saveMode
-     * @param bool $saveElement
+     * @param Element      $element
+     * @param Site         $fromSite
+     * @param Site         $toSite
+     * @param string|null  $language
+     * @param string|null  $saveMode
+     * @param bool         $saveElement
      * @param Element|null $owner
-     * @param array|null $attributes
+     * @param array|null   $attributes
+     *
      * @return Element|null
      * @throws InvalidConfigException
      * @throws \Throwable
@@ -49,7 +51,7 @@ class Translate extends Component
     {
         $language = $language ?? $toSite->getLocale()->getLanguageID();
         $saveMode = $saveMode ?? TransMate::getInstance()->getSettings()->saveMode;
-        $saveAsDraft = in_array($saveMode, ['draft', 'provisional'], true);
+        $saveAsDraft =  $element::hasDrafts() && in_array($saveMode, ['draft', 'provisional'], true);
         $userId = TranslateHelper::currentUser()?->id;
 
         $targetElement = ElementHelper::getTargetEntry($element, $toSite, $owner);
@@ -82,7 +84,7 @@ class Translate extends Component
 
         foreach ($translatableContent->fields as $handle => $processor) {
             /** @var $processor ProcessorInterface */
-            
+
             if ($handle === 'title') { // Handling native field "title"
                 $targetElement->title = $processor->getValue();
             } elseif ($handle === 'alt' && $targetElement instanceof Asset) { // Handling native field "alt", but only for assets.
