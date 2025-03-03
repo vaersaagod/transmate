@@ -27,12 +27,13 @@
 {% if actionMenuItems %}
     {{ disclosureMenu(actionMenuItems, {
         buttonLabel: 'Translate'|t('transmate'),
+        buttonSpinner: true,
         buttonAttributes: {
-            class: [],
+            class: [''],
             title: 'Translate'|t('transmate'),
             data: {
                 'disclosure-trigger': true,
             },
         },
-    }) }}
+    })|attr({ 'data-transmate-disclosure-button': '' }) }}
 {% endif %}

@@ -9,7 +9,8 @@ $(document).ready(
                     fromSiteId
                 };
 
-                //$button.addClass('loading');
+                const $button = $('[data-transmate-disclosure-button]');
+                $button.addClass('loading');
 
                 Craft.sendActionRequest(
                         'POST',
@@ -28,7 +29,7 @@ $(document).ready(
                         console.error(error);
                     })
                     .then(() => {
-                        //$button.removeClass('loading');
+                        $button.removeClass('loading');
                     });
             }
 
