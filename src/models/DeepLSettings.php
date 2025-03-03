@@ -9,6 +9,7 @@ class DeepLSettings extends Model
 {
     public string $apiKey = '';
     public array $options = [];
+    public array $glossaries = [];
     
     /**
      * @param $values

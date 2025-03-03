@@ -38,8 +38,18 @@ class DeepLTranslator extends BaseTranslator
             $options['tag_handling'] = 'html';
         }
 
+        $sourceLang = self::$sourceCountryCodeLUM[$this->fromLanguage] ?? $this->fromLanguage;
+        $targetLang = self::$targetCountryCodeLUM[$this->toLanguage] ?? $this->toLanguage;
+        
+        if (!empty($this->config->glossaries)) {
+            $glossaries = $this->config->glossaries;
+            if (isset($glossaries[$sourceLang][$targetLang])) {
+                $options['glossary'] = $glossaries[$sourceLang][$targetLang];
+            }
+        }
+
         $translator = new \DeepL\Translator($this->config->apiKey);
-        $result = $translator->translateText($content, self::$sourceCountryCodeLUM[$this->fromLanguage] ?? $this->fromLanguage, self::$targetCountryCodeLUM[$this->toLanguage] ?? $this->toLanguage, $options);
+        $result = $translator->translateText($content, $sourceLang, $targetLang, $options);
 
         return $result->text;
     }
