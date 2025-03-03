@@ -7,6 +7,7 @@ use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\base\Field;
 use craft\base\FieldLayoutElement;
+use craft\db\Query;
 use craft\elements\Asset;
 use craft\elements\Entry;
 use craft\elements\User;
@@ -160,7 +161,13 @@ class TranslateHelper
         return true;
     }
 
-    public static function getAllowedSitesForTranslation(?ElementInterface $element, bool $supportedSitesOnly = false): array
+    /**
+     * @param ElementInterface|null $element
+     * @param bool $enabledSitesOnly Pass `true` to only return sites the element currently exists in
+     * @return array
+     * @throws \Throwable
+     */
+    public static function getAllowedSitesForTranslation(?ElementInterface $element, bool $enabledSitesOnly = false): array
     {
         if (empty($element)) {
             return [];
@@ -176,10 +183,17 @@ class TranslateHelper
             return [];
         }
 
-        $sites = Craft::$app->getSites()->getAllSites();
-        if ($supportedSitesOnly) {
-            $supportedSiteIds = array_column($element->getSupportedSites(), 'siteId');
-            $sites = array_filter($sites, static fn ($site) => in_array($site->id, $supportedSiteIds));
+        $sites = Craft::$app->getSites()->getAllSites(true);
+        if ($enabledSitesOnly) {
+            $enabledSiteIds = (new Query())
+                ->select('siteId')
+                ->from('{{%elements_sites}}')
+                ->where([
+                    'elementId' => $element->getCanonicalId(),
+                ])
+                ->distinct()
+                ->column();
+            $sites = array_filter($sites, static fn ($site) => in_array($site->id, $enabledSiteIds));
         }
 
         if (count($sites) <= 1) {
@@ -291,7 +305,7 @@ class TranslateHelper
     public static function getTranslateFieldAction(FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): array
     {
         // TODO account for disableTranslationProperty so that the translate field action isn't added to unsupported fields
-        $translateFromSites = TranslateHelper::getAllowedSitesForTranslation($element, supportedSitesOnly: true);
+        $translateFromSites = TranslateHelper::getAllowedSitesForTranslation($element, enabledSitesOnly: true);
         if (empty($translateFromSites)) {
             return [];
         }

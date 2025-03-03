@@ -18,7 +18,7 @@ class CpExtension extends AbstractExtension
     {
         return [
             new TwigFunction('getTranslateToSites', static fn (?ElementInterface $element) => TranslateHelper::getAllowedSitesForTranslation($element)),
-            new TwigFunction('getTranslateFromSites', static fn (?ElementInterface $element) => TranslateHelper::getAllowedSitesForTranslation($element, supportedSitesOnly: true)),
+            new TwigFunction('getTranslateFromSites', static fn (?ElementInterface $element) => TranslateHelper::getAllowedSitesForTranslation($element, enabledSitesOnly: true)),
         ];
     }
 }
