@@ -8,7 +8,6 @@ Craft.TranslateFieldModal = Garnish.Base.extend({
     fromSites: null,
 
     init($btn, $field) {
-
         this.editor = $field.closest('[data-element-editor]').data('elementEditor');
 
         const headingId =

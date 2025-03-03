@@ -3,6 +3,8 @@
 namespace vaersaagod\transmate;
 
 use Craft;
+use Monolog\Formatter\LineFormatter;
+use Psr\Log\LogLevel;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\base\Event;
@@ -28,13 +30,11 @@ use craft\models\FieldLayoutTab;
 use craft\services\Elements;
 use craft\services\UserPermissions;
 use craft\web\View;
-use Monolog\Formatter\LineFormatter;
-use Psr\Log\LogLevel;
-
 use vaersaagod\transmate\actions\TranslateTo;
 use vaersaagod\transmate\helpers\TranslateHelper;
 use vaersaagod\transmate\models\Settings;
 use vaersaagod\transmate\services\Translate;
+use vaersaagod\transmate\web\twig\CpExtension;
 
 /**
  * TransMate plugin
@@ -81,8 +81,9 @@ class TransMate extends Plugin
 
         // Defer most setup tasks until Craft is fully initialized
         Craft::$app->onInit(function () {
-            if (Craft::$app->request->isCpRequest) {
+            if (Craft::$app->request->getIsCpRequest() && !Craft::$app->getRequest()->getIsLoginRequest()) {
                 Craft::$app->view->registerAssetBundle(TransMateBundle::class);
+                Craft::$app->view->registerTwigExtension(new CpExtension());
             }
 
             $this->attachEventHandlers();
@@ -151,7 +152,7 @@ class TransMate extends Plugin
         );
 
         // Monkey-patch in translate field actions
-        // Hope that https://github.com/craftcms/cms/discussions/16779 is added
+        // This is temporary until Craft 5.7 – https://github.com/craftcms/cms/discussions/16779
         Event::on(
             FieldLayout::class,
             FieldLayout::EVENT_CREATE_FORM,

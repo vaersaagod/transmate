@@ -1,33 +1,30 @@
-{% set allowedSites = create('vaersaagod\\transmate\\helpers\\TranslateHelper').userCanTranslateElementToSites(element) %}
+{% set translateFromSites = getTranslateFromSites(element) %}
+{% set translateToSites = getTranslateToSites(element) %}
 
-{% if allowedSites|length > 1 %}
+{% set actionMenuItems = [] %}
 
-    {% set actionMenuItems = [] %}
-
-    {% for allowedSite in allowedSites %}
-
-        {% if allowedSite.id != element.siteId %}
-            {% set actionMenuItems = actionMenuItems|merge([
-                {
-                    label: 'Translate from'|t('app') ~ ' ' ~ allowedSite.name,
-                    attributes: {
-                        data: { 'transmate-action': 'translateFrom', 'element-id': element.id, 'current-site-id': element.siteId, 'from-site-id': allowedSite.id },
-                    }
-                }
-            ]) %}
-        {% endif %}
-
-    {% endfor %}
-
-    {% set actionMenuItems = actionMenuItems|merge([
-        {
-            label: 'Translate to...'|t('app'),
-            attributes: {
-                data: { 'transmate-action': 'translateTo', 'element-id': element.id, 'current-site-id': element.siteId },
-            }
+{% if translateFromSites %}
+    {% set actionMenuItems = [...actionMenuItems, ...translateFromSites|map(fromSite => {
+        label: 'Translate from {site}'|t('transmate', { site: fromSite.name }),
+        attributes: {
+            data: { 'transmate-action': 'translateFrom', 'element-id': element.id, 'current-site-id': element.siteId, 'from-site-id': fromSite.id }
         }
-    ]) %}
+    })] %}
+{% endif %}
 
+{% if translateToSites %}
+    {% if translateFromSites %}
+        {% set actionMenuItems = [...actionMenuItems, { type: 'hr' }] %}
+    {% endif %}
+    {% set actionMenuItems = [...actionMenuItems, {
+        label: 'Translate to site...'|t('transmate'),
+        attributes: {
+            data: { 'transmate-action': 'translateTo', 'element-id': element.id, 'current-site-id': element.siteId },
+        }
+    }] %}
+{% endif %}
+
+{% if actionMenuItems %}
     {{ disclosureMenu(actionMenuItems, {
         buttonLabel: 'Translate'|t('transmate'),
         buttonAttributes: {
@@ -38,5 +35,4 @@
             },
         },
     }) }}
-
 {% endif %}

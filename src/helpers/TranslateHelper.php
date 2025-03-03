@@ -160,7 +160,7 @@ class TranslateHelper
         return true;
     }
 
-    public static function userCanTranslateElementToSites(?ElementInterface $element):array
+    public static function getAllowedSitesForTranslation(?ElementInterface $element, bool $supportedSitesOnly = false): array
     {
         if (empty($element)) {
             return [];
@@ -171,8 +171,20 @@ class TranslateHelper
             return [];
         }
         
+        $elementSite = Craft::$app->getSites()->getSiteById($element->siteId);
+        if (empty($elementSite)) {
+            return [];
+        }
+
         $sites = Craft::$app->getSites()->getAllSites();
-        $currentSite = Craft::$app->getSites()->getSiteById($element->siteId);
+        if ($supportedSitesOnly) {
+            $supportedSiteIds = array_column($element->getSupportedSites(), 'siteId');
+            $sites = array_filter($sites, static fn ($site) => in_array($site->id, $supportedSiteIds));
+        }
+
+        if (count($sites) <= 1) {
+            return [];
+        }
 
         // If this is an entry, get the section and make sure the user is at least allowed to create drafts in that section
         $section = null;
@@ -185,22 +197,21 @@ class TranslateHelper
         // TODO Check necessary permissions for other element types?
 
         $allowedSites = [];
-        
-        if ($currentSite === null) {
-            return $allowedSites;
-        }
-        
         foreach ($sites as $site) {
             if (
-                self::areSitesInSameTranslationGroup($currentSite, $site) 
-                && ($currentUser->can('editSite:'.$currentSite->uid))
-                && ($section === null || in_array($currentSite->id, $section->getSiteIds(), true))
+                self::areSitesInSameTranslationGroup($elementSite, $site)
+                && ($currentUser->can('editSite:'.$elementSite->uid))
+                && ($section === null || in_array($elementSite->id, $section->getSiteIds(), true))
             ) {
                 $allowedSites[] = $site;
             }
         }
-        
-        return $allowedSites;
+
+        // Return all the allowed sites; excluding the element's site
+        return Collection::make($allowedSites)
+            ->where('id', '!=', $element->siteId)
+            ->values()
+            ->all();
     }
     
     public static function areSitesInSameTranslationGroup($oneSite, $anotherSite): bool
@@ -280,12 +291,7 @@ class TranslateHelper
     public static function getTranslateFieldAction(FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): array
     {
         // TODO account for disableTranslationProperty so that the translate field action isn't added to unsupported fields
-
-        $translateFromSites = Collection::make(TranslateHelper::userCanTranslateElementToSites($element))
-            ->where('id', '!=', $element->siteId)
-            ->map(static fn (Site $site) => ['id' => $site->id, 'name' => $site->name])
-            ->values()
-            ->all();
+        $translateFromSites = TranslateHelper::getAllowedSitesForTranslation($element, supportedSitesOnly: true);
         if (empty($translateFromSites)) {
             return [];
         }
@@ -293,18 +299,6 @@ class TranslateHelper
         // prepare namespace for the purpose of translating
         $namespace = Craft::$app->getView()->getNamespace();
         $label = $fieldLayoutElement->getLabel() ?? null;
-
-        $js = <<<JS
-            Garnish.\$bod.on('click', '[data-transmate-field-translate]', (ev) => {
-                const \$target = \$(ev.currentTarget);
-                const \$field = \$target
-                    .closest('.menu')
-                    .data('disclosureMenu')
-                    ?.\$trigger.closest('.field');
-                new Craft.TranslateFieldModal(\$target, \$field);
-            });
-        JS;
-        Craft::$app->getView()->registerJs($js);
 
         return [
             'icon' => 'language',
@@ -314,7 +308,10 @@ class TranslateHelper
                     'transmate-field-translate' => true,
                     'element-id' => $element->id,
                     'site-id' => $element->siteId,
-                    'sites' => Json::encode($translateFromSites),
+                    'sites' => Json::encode(array_map(static fn (Site $site) => [
+                        'id' => $site->id,
+                        'name' => $site->name,
+                    ], $translateFromSites)),
                     'layout-element' => $fieldLayoutElement->uid,
                     'label' => $label,
                     'namespace' => ($namespace && $namespace !== 'fields')
