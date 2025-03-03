@@ -2,7 +2,7 @@
     "name": "vaersaagod/transmate",
     "description": "Potato, patate, potet, kartoffel. We're not that different, mate!",
     "type": "craft-plugin",
-    "version": "1.0.0-beta.1",
+    "version": "1.0.0-beta.2",
     "require": {
         "php": "^8.2.0",
         "craftcms/cms": "^5.5.0",
