@@ -2,6 +2,7 @@
 
 namespace vaersaagod\transmate\translators;
 
+use craft\helpers\StringHelper;
 use craft\web\View;
 use vaersaagod\transmate\models\DeepLSettings;
 use vaersaagod\transmate\TransMate;
@@ -31,6 +32,10 @@ class DeepLTranslator extends BaseTranslator
         
         if (isset($options['context'])) {
             $options['context'] = \Craft::$app->getView()->renderString($options['context']);
+        }
+
+        if (!isset($options['tag_handling']) && StringHelper::isHtml($content)) {
+            $options['tag_handling'] = 'html';
         }
 
         $translator = new \DeepL\Translator($this->config->apiKey);
