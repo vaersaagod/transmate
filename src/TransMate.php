@@ -83,12 +83,10 @@ class TransMate extends Plugin
         // Defer most setup tasks until Craft is fully initialized
         Craft::$app->onInit(function () {
             if (Craft::$app->request->getIsCpRequest() && !Craft::$app->getRequest()->getIsLoginRequest()) {
-                Craft::$app->view->registerAssetBundle(TransMateBundle::class);
+                Craft::$app->view->registerAssetBundle(TransmateBundle::class);
                 Craft::$app->view->registerTwigExtension(new CpExtension());
             }
-
             $this->attachEventHandlers();
-            // ...
         });
     }
 
