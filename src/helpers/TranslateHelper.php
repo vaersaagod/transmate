@@ -22,8 +22,6 @@ use craft\models\Site;
 
 use Illuminate\Support\Collection;
 
-use Psy\Util\Json;
-
 use vaersaagod\transmate\models\fieldprocessors\MatrixProcessor;
 use vaersaagod\transmate\TransMate;
 use vaersaagod\transmate\models\fieldprocessors\CKEditorProcessor;
@@ -322,7 +320,7 @@ class TranslateHelper
                     'transmate-field-translate' => true,
                     'element-id' => $element->id,
                     'site-id' => $element->siteId,
-                    'sites' => Json::encode(array_map(static fn (Site $site) => [
+                    'sites' => json_encode(array_map(static fn (Site $site) => [
                         'id' => $site->id,
                         'name' => $site->name,
                     ], $translateFromSites)),
