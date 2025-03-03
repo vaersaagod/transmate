@@ -202,7 +202,7 @@ class TranslateHelper
 
         // If this is an entry, get the section and make sure the user is at least allowed to create drafts in that section
         $section = null;
-        if ($element instanceof Entry && $section = $element->getRootOwner()->getSection()) {
+        if ($element->getRootOwner() instanceof Entry && $section = $element->getRootOwner()->getSection()) {
             if (!$currentUser->can('viewEntries:' . $section->uid)) {
                 return [];
             }
