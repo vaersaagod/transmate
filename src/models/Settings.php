@@ -17,6 +17,7 @@ class Settings extends Model
     public array $translatorConfig = [
         'deepl' => [
             'apiKey' => '',
+            'options' => [],
             'glossaries' => []
         ],
         'openai' => [
