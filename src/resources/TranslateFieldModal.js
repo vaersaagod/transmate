@@ -105,7 +105,7 @@ Craft.TranslateFieldModal = Garnish.Base.extend({
                     message
                 } = response.data;
 
-                if (this.editor) {
+                if (this.editor && this.editor.settings.canonicalId === response.data.canonicalId) {
                     this.editor._handleSaveDraftResponse(response);
                 }
 
