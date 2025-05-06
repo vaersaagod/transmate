@@ -23,6 +23,7 @@ use craft\models\Site;
 use Illuminate\Support\Collection;
 
 use vaersaagod\transmate\models\fieldprocessors\MatrixProcessor;
+use vaersaagod\transmate\models\fieldprocessors\RedactorProcessor;
 use vaersaagod\transmate\TransMate;
 use vaersaagod\transmate\models\fieldprocessors\CKEditorProcessor;
 use vaersaagod\transmate\models\fieldprocessors\LinkProcessor;
@@ -69,9 +70,8 @@ class TranslateHelper
                     $translatableContent->addField($field->handle, new LinkProcessor(['field' => $field, 'originalValue' => $element->getFieldValue($field->handle)]));
                 } elseif ($field instanceof \craft\ckeditor\Field) {
                     $translatableContent->addField($field->handle, new CKEditorProcessor(['field' => $field, 'originalValue' => $element->getFieldValue($field->handle), 'source' => $element, 'target' => $targetElement]));
-                    
-                // } elseif (get_class($field) === 'craft\redactor\Field') { // Skal vi gidde?
-                    
+                } elseif ($field instanceof \craft\redactor\Field) {
+                    $translatableContent->addField($field->handle, new RedactorProcessor(['field' => $field, 'originalValue' => $element->getFieldValue($field->handle), 'source' => $element, 'target' => $targetElement]));
                 }
             }
         }
