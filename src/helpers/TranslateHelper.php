@@ -22,6 +22,7 @@ use craft\models\Site;
 
 use Illuminate\Support\Collection;
 
+use vaersaagod\transmate\models\fieldprocessors\LinkMateProcessor;
 use vaersaagod\transmate\models\fieldprocessors\MatrixProcessor;
 use vaersaagod\transmate\models\fieldprocessors\RedactorProcessor;
 use vaersaagod\transmate\TransMate;
@@ -62,8 +63,6 @@ class TranslateHelper
             } elseif ($translatableField) {
                 if ($field instanceof PlainText) {
                     $translatableContent->addField($field->handle, new PlainTextProcessor(['field' => $field, 'originalValue' => $element->getFieldValue($field->handle)]));
-                    
-                    
                 } elseif ($field instanceof Table) {
                     $translatableContent->addField($field->handle, new TableProcessor(['field' => $field, 'originalValue' => $element->getFieldValue($field->handle)]));
                 } elseif ($field instanceof Link) {
@@ -72,6 +71,10 @@ class TranslateHelper
                     $translatableContent->addField($field->handle, new CKEditorProcessor(['field' => $field, 'originalValue' => $element->getFieldValue($field->handle), 'source' => $element, 'target' => $targetElement]));
                 } elseif ($field instanceof \craft\redactor\Field) {
                     $translatableContent->addField($field->handle, new RedactorProcessor(['field' => $field, 'originalValue' => $element->getFieldValue($field->handle), 'source' => $element, 'target' => $targetElement]));
+                } elseif ($field instanceof \vaersaagod\linkmate\fields\LinkField) {
+                    $translatableContent->addField($field->handle, new LinkMateProcessor(['field' => $field, 'originalValue' => $element->getFieldValue($field->handle)]));
+                } else {
+                    // some other type of field
                 }
             }
         }
