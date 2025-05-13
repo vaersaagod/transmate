@@ -19,7 +19,6 @@ class TableProcessor extends Model implements ProcessorInterface
     
     public function getValue(): mixed
     {
-        // TBD: Should it return the original value if not translated...? Probably not.
         return $this->translatedValue;
     }
 
@@ -44,7 +43,7 @@ class TableProcessor extends Model implements ProcessorInterface
             foreach ($row as $key=>$value) {
                 $columnType = isset($columnDef[$key]) ? $columnDef[$key]['type'] : '';
                 
-                if (in_array($columnType, ['singleline', 'multiline'])) {
+                if (!empty($value) && in_array($columnType, ['singleline', 'multiline'])) {
                     $row[$key] = $translator->translate($value);
                 }
             }
