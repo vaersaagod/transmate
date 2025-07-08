@@ -4,6 +4,9 @@ namespace vaersaagod\transmate;
 
 use Craft;
 use craft\elements\User;
+use craft\events\DefineMenuItemsEvent;
+use craft\events\FieldEvent;
+use craft\helpers\ArrayHelper;
 use Monolog\Formatter\LineFormatter;
 use Psr\Log\LogLevel;
 use craft\base\Element;
@@ -135,7 +138,7 @@ class TransMate extends Plugin
                 if ($element instanceof User) {
                     return;
                 }
-                
+
                 $template = Craft::$app->getView()->renderTemplate('transmate/action-buttons', [
                     'element' => $element,
                     'pluginSettings' => $this->getSettings()
@@ -154,21 +157,42 @@ class TransMate extends Plugin
             }
         );
 
-        // Monkey-patch in translate field actions
-        // This is temporary until Craft 5.7 – https://github.com/craftcms/cms/discussions/16779
+        // Add translate field action to field layout elements
+        // We wrap this in a FieldLayout::EVENT_CREATE_FORM event to access the element (which unfortunately is not exposed for the new Field::EVENT_DEFINE_ACTION_MENU_ITEMS event in Craft 5.7)
         Event::on(
-            FieldLayout::class,
-            FieldLayout::EVENT_CREATE_FORM,
-            static function (CreateFieldLayoutFormEvent $event) {
-                if ($event->static) {
+            Field::class,
+            Field::EVENT_DEFINE_INPUT_HTML,
+            static function (DefineFieldHtmlEvent $event) {
+                if (!$event->sender instanceof Field || $event->static || $event->inline) {
                     return;
                 }
-                foreach ($event->tabs as $tab) {
-                    if (empty($tab->elements)) {
-                        return;
-                    }
-                    $tab->elements = array_map([TranslateHelper::class, 'getTranslatableFieldLayoutElement'], $tab->elements);
+
+                $element = $event->element;
+                if (!$element instanceof ElementInterface) {
+                    return;
                 }
+
+                $layoutElement = $event->sender->layoutElement;
+                if (!$layoutElement instanceof FieldLayoutElement) {
+                    return;
+                }
+
+                Event::on(
+                    Field::class,
+                    Field::EVENT_DEFINE_ACTION_MENU_ITEMS,
+                    static function (DefineMenuItemsEvent $event) use ($element, $layoutElement) {
+                        if ($event->sender?->layoutElement->uid !== $layoutElement->uid) {
+                            return;
+                        }
+
+                        $translateAction = TranslateHelper::getTranslateFieldAction($layoutElement, $element);
+                        if (empty($translateAction)) {
+                            return;
+                        }
+
+                        array_unshift($event->items, $translateAction);
+                    }
+                );
             }
         );
     }

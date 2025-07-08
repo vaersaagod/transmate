@@ -183,7 +183,6 @@ class DefaultController extends Controller
         if (!$layoutElement instanceof BaseField) {
             throw new BadRequestHttpException("Invalid layout element UUID: $layoutElementUid");
         }
-        $layoutElement = TranslateHelper::getTranslatableFieldLayoutElement($layoutElement); // TODO remove in Craft 5.7
         if ($layoutElement instanceof CustomField) {
             $fieldHandle = $layoutElement->getField()->handle;
         } else {

@@ -246,76 +246,33 @@ class TranslateHelper
         return false;
     }
 
-    public static function getTranslatableFieldLayoutElement(FieldLayoutElement $fieldLayoutElement): FieldLayoutElement
+    /**
+     * @param FieldLayoutElement $fieldLayoutElement
+     * @param ElementInterface|null $element
+     * @return array|null
+     * @throws \Throwable
+     */
+    public static function getTranslateFieldAction(FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): ?array
     {
-        if ($fieldLayoutElement instanceof CustomField) {
-            return new class($fieldLayoutElement->field, $fieldLayoutElement->getAttributes()) extends CustomField {
-                public function actionMenuItems(?ElementInterface $element = null, bool $static = false): array
-                {
-                    $actionMenuItems = parent::actionMenuItems($element, $static);
-                    if ($static || !$this->getIsTransmateTranslatable($element)) {
-                        return $actionMenuItems;
-                    }
-                    $translateFieldAction = TranslateHelper::getTranslateFieldAction($this, $element);
-                    return array_filter([
-                        $translateFieldAction,
-                        !empty($translateFieldAction && !empty($actionMenuItems)) ? ['type' => 'hr'] : null,
-                        ...$actionMenuItems,
-                    ]);
-                }
-
-                protected function getIsTransmateTranslatable(?ElementInterface $element = null, bool $static = false): bool
-                {
-                    if ($this->getField() instanceof Matrix) {
-                        return true;
-                    }
-                    return parent::translatable($element, $static);
-                }
-
-                public function getLabel(): ?string
-                {
-                    return parent::showLabel() ? parent::label() : null;
-                }
-            };
-        } else if ($fieldLayoutElement instanceof EntryTitleField) {
-            return new class($fieldLayoutElement->getAttributes()) extends EntryTitleField {
-                public function actionMenuItems(?ElementInterface $element = null, bool $static = false): array
-                {
-                    $actionMenuItems = parent::actionMenuItems($element, $static);
-                    if ($static || !parent::translatable($element)) {
-                        return $actionMenuItems;
-                    }
-                    $translateFieldAction = TranslateHelper::getTranslateFieldAction($this, $element);
-                    return array_filter([
-                        $translateFieldAction,
-                        !empty($translateFieldAction && !empty($actionMenuItems)) ? ['type' => 'hr'] : null,
-                        ...$actionMenuItems,
-                    ]);
-                }
-
-                public function getLabel(): ?string
-                {
-                    return parent::showLabel() ? parent::label() : null;
-                }
-            };
+        if (!TranslateHelper::isFieldLayoutElementTranslatableForElement($fieldLayoutElement, $element)) {
+            return null;
         }
 
-        return $fieldLayoutElement;
-    }
-
-    public static function getTranslateFieldAction(FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): array
-    {
         // TODO account for disableTranslationProperty so that the translate field action isn't added to unsupported fields
         $translateFromSites = TranslateHelper::getAllowedSitesForTranslation($element, enabledSitesOnly: true);
         if (empty($translateFromSites)) {
-            return [];
+            return null;
         }
 
         // prepare namespace for the purpose of translating
         $namespace = Craft::$app->getView()->getNamespace();
-        $label = $fieldLayoutElement->getLabel() ?? null;
+        $label = $fieldLayoutElement->label() ?? null;
+        if ($label === '__blank__') {
+            $label = null;
+        }
 
         return [
+            'id' => 'transmate-translate-field-' . $fieldLayoutElement->uid,
             'icon' => 'language',
             'label' => Craft::t('transmate', 'Translate from site…'),
             'attributes' => [
@@ -347,5 +304,20 @@ class TranslateHelper
     public static function currentUser(bool $autoRenew = true): ?User
     {
         return Craft::$app->getUser()->getIdentity($autoRenew);
+    }
+
+    /**
+     * Check if a field layout element is TransMate-translatable for a given element
+     *
+     * @param FieldLayoutElement $fieldLayoutElement
+     * @param ElementInterface|null $element
+     * @return bool
+     */
+    protected static function isFieldLayoutElementTranslatableForElement(FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): bool
+    {
+        if ($fieldLayoutElement->getField() instanceof Matrix) {
+            return true;
+        }
+        return $fieldLayoutElement->getField()?->getIsTranslatable($element) ?? false;
     }
 }
