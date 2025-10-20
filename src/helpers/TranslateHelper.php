@@ -11,6 +11,8 @@ use craft\db\Query;
 use craft\elements\Asset;
 use craft\elements\Entry;
 use craft\elements\User;
+use craft\fieldlayoutelements\assets\AltField;
+use craft\fieldlayoutelements\assets\AssetTitleField;
 use craft\fieldlayoutelements\CustomField;
 use craft\fieldlayoutelements\entries\EntryTitleField;
 use craft\fields\Link;
@@ -22,6 +24,7 @@ use craft\models\Site;
 
 use Illuminate\Support\Collection;
 
+use vaersaagod\transmate\base\TranslatableFieldActionsTrait;
 use vaersaagod\transmate\models\fieldprocessors\LinkMateProcessor;
 use vaersaagod\transmate\models\fieldprocessors\MatrixProcessor;
 use vaersaagod\transmate\models\fieldprocessors\RedactorProcessor;
@@ -246,6 +249,29 @@ class TranslateHelper
         return false;
     }
 
+    public static function getTranslatableFieldLayoutElement(FieldLayoutElement $fieldLayoutElement): FieldLayoutElement
+    {
+        if ($fieldLayoutElement instanceof EntryTitleField) {
+            return new class($fieldLayoutElement->getAttributes()) extends EntryTitleField {
+                use TranslatableFieldActionsTrait;
+            };
+        }
+        
+        if ($fieldLayoutElement instanceof AssetTitleField) {
+            return new class($fieldLayoutElement->getAttributes()) extends AssetTitleField {
+                use TranslatableFieldActionsTrait;
+            };
+        }
+        
+        if ($fieldLayoutElement instanceof AltField) {
+            return new class($fieldLayoutElement->getAttributes()) extends AltField {
+                use TranslatableFieldActionsTrait;
+            };
+        }
+
+        return $fieldLayoutElement;
+    }    
+    
     /**
      * @param FieldLayoutElement $fieldLayoutElement
      * @param ElementInterface|null $element
@@ -254,19 +280,19 @@ class TranslateHelper
      */
     public static function getTranslateFieldAction(FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): ?array
     {
-        if (!TranslateHelper::isFieldLayoutElementTranslatableForElement($fieldLayoutElement, $element)) {
+        if (!self::isFieldLayoutElementTranslatableForElement($fieldLayoutElement, $element)) {
             return null;
         }
 
         // TODO account for disableTranslationProperty so that the translate field action isn't added to unsupported fields
-        $translateFromSites = TranslateHelper::getAllowedSitesForTranslation($element, enabledSitesOnly: true);
+        $translateFromSites = self::getAllowedSitesForTranslation($element, enabledSitesOnly: true);
         if (empty($translateFromSites)) {
             return null;
         }
 
         // prepare namespace for the purpose of translating
         $namespace = Craft::$app->getView()->getNamespace();
-        $label = $fieldLayoutElement->label() ?? null;
+        $label = $fieldLayoutElement->label();
         if ($label === '__blank__') {
             $label = null;
         }
@@ -283,7 +309,7 @@ class TranslateHelper
                     'sites' => json_encode(array_map(static fn (Site $site) => [
                         'id' => $site->id,
                         'name' => $site->name,
-                    ], $translateFromSites)),
+                    ], $translateFromSites), JSON_THROW_ON_ERROR),
                     'layout-element' => $fieldLayoutElement->uid,
                     'label' => $label,
                     'namespace' => ($namespace && $namespace !== 'fields')
@@ -315,6 +341,14 @@ class TranslateHelper
      */
     protected static function isFieldLayoutElementTranslatableForElement(FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): bool
     {
+        if ($fieldLayoutElement instanceof AltField) {
+            return $fieldLayoutElement->getLayout()->provider?->altTranslationMethod !== Field::TRANSLATION_METHOD_NONE;
+        }
+        
+        if ($fieldLayoutElement instanceof EntryTitleField || $fieldLayoutElement instanceof AssetTitleField) {
+            return $fieldLayoutElement->getLayout()->provider?->titleTranslationMethod !== Field::TRANSLATION_METHOD_NONE;
+        }
+        
         if ($fieldLayoutElement->getField() instanceof Matrix) {
             return true;
         }

@@ -158,7 +158,7 @@ class TransMate extends Plugin
         );
 
         // Add translate field action to field layout elements
-        // We wrap this in a FieldLayout::EVENT_CREATE_FORM event to access the element (which unfortunately is not exposed for the new Field::EVENT_DEFINE_ACTION_MENU_ITEMS event in Craft 5.7)
+        // We wrap this in a FieldLayout::EVENT_DEFINE_INPUT_HTML event to access the element (which unfortunately is not exposed for the new Field::EVENT_DEFINE_ACTION_MENU_ITEMS event in Craft 5.7)
         Event::on(
             Field::class,
             Field::EVENT_DEFINE_INPUT_HTML,
@@ -190,11 +190,32 @@ class TransMate extends Plugin
                             return;
                         }
 
-                        array_unshift($event->items, $translateAction);
+                        $event->items[] = $translateAction;
                     }
                 );
             }
         );
+        
+        // Monkey-patch in translate field actions for native fields; title and alt
+        // This is a (hopefully) temporary fix – https://github.com/craftcms/cms/discussions/16779
+        
+        Event::on(
+            FieldLayout::class,
+            FieldLayout::EVENT_CREATE_FORM,
+            static function (CreateFieldLayoutFormEvent $event) {
+                if ($event->static) {
+                    return;
+                }
+
+                foreach ($event->tabs as $tab) {
+                    if (empty($tab->elements)) {
+                        return;
+                    }
+                    $tab->elements = array_map([TranslateHelper::class, 'getTranslatableFieldLayoutElement'], $tab->elements);
+                }
+            }
+        );
+
     }
 
     protected function createSettingsModel(): ?Model
