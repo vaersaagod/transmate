@@ -181,7 +181,13 @@ class TransMate extends Plugin
                             return;
                         }
 
-                        $event->items[] = $translateAction;
+                        // Try to put it before the "Field settings" action, if it exists
+                        $fieldSettingsActionIndex = array_search(true, array_map(fn($id) => str_starts_with($id, 'action-edit-'), array_column($event->items, 'id')));
+                        if ($fieldSettingsActionIndex !== false) {
+                            array_splice($event->items, $fieldSettingsActionIndex, 0, [$translateAction]);
+                        } else {
+                            $event->items[] = $translateAction;
+                        }
                     }
                 );
             }
