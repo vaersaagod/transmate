@@ -5,10 +5,6 @@ namespace vaersaagod\transmate;
 use Craft;
 use craft\elements\User;
 use craft\events\DefineMenuItemsEvent;
-use craft\events\FieldEvent;
-use craft\helpers\ArrayHelper;
-use Monolog\Formatter\LineFormatter;
-use Psr\Log\LogLevel;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\base\Event;
@@ -16,24 +12,19 @@ use craft\base\Field;
 use craft\base\FieldLayoutElement;
 use craft\base\Model;
 use craft\base\Plugin;
-use craft\elements\Asset;
-use craft\elements\Entry;
-use craft\events\CreateFieldLayoutFormEvent;
 use craft\events\DefineFieldHtmlEvent;
 use craft\events\DefineHtmlEvent;
 use craft\events\ElementEvent;
 use craft\events\RegisterElementActionsEvent;
 use craft\events\RegisterUserPermissionsEvent;
-use craft\events\TemplateEvent;
-use craft\fieldlayoutelements\BaseField;
-use craft\fieldlayoutelements\CustomField;
-use craft\fieldlayoutelements\entries\EntryTitleField;
 use craft\log\MonologTarget;
 use craft\models\FieldLayout;
-use craft\models\FieldLayoutTab;
 use craft\services\Elements;
 use craft\services\UserPermissions;
-use craft\web\View;
+
+use Monolog\Formatter\LineFormatter;
+use Psr\Log\LogLevel;
+
 use vaersaagod\transmate\actions\TranslateTo;
 use vaersaagod\transmate\helpers\TranslateHelper;
 use vaersaagod\transmate\models\Settings;
@@ -195,19 +186,15 @@ class TransMate extends Plugin
                 );
             }
         );
-        
+
         // Monkey-patch in translate field actions for native fields; title and alt
         // This is a (hopefully) temporary fix – https://github.com/craftcms/cms/discussions/16779
-        
         Event::on(
             FieldLayout::class,
-            FieldLayout::EVENT_CREATE_FORM,
-            static function (CreateFieldLayoutFormEvent $event) {
-                if ($event->static) {
-                    return;
-                }
-
-                foreach ($event->tabs as $tab) {
+            Model::EVENT_INIT,
+            static function (\yii\base\Event $event) {
+                $fieldLayout = &$event->sender;
+                foreach ($fieldLayout->tabs as $tab) {
                     if (empty($tab->elements)) {
                         return;
                     }
