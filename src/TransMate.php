@@ -17,6 +17,7 @@ use craft\events\DefineHtmlEvent;
 use craft\events\ElementEvent;
 use craft\events\RegisterElementActionsEvent;
 use craft\events\RegisterUserPermissionsEvent;
+use craft\fieldlayoutelements\BaseNativeField;
 use craft\log\MonologTarget;
 use craft\models\FieldLayout;
 use craft\services\Elements;
@@ -206,6 +207,24 @@ class TransMate extends Plugin
                     }
                     $tab->elements = array_map([TranslateHelper::class, 'getTranslatableFieldLayoutElement'], $tab->elements);
                 }
+            }
+        );
+
+        // This would never fire if not for the monkey patch above
+        Event::on(
+            BaseNativeField::class,
+            'eventDefineNativeFieldActionMenuItems',
+            static function (DefineMenuItemsEvent $event) {
+                if (!empty($event->static) || !property_exists($event, 'element')) {
+                    return;
+                }
+                /** @var FieldLayoutElement $layoutElement */
+                $layoutElement = $event->sender;
+                $translateFieldAction = TranslateHelper::getTranslateFieldAction($layoutElement, $event->element);
+                if (empty($translateFieldAction)) {
+                    return;
+                }
+                $event->items = [...$event->items, $translateFieldAction];
             }
         );
 

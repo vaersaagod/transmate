@@ -13,7 +13,6 @@ use craft\elements\Entry;
 use craft\elements\User;
 use craft\fieldlayoutelements\assets\AltField;
 use craft\fieldlayoutelements\assets\AssetTitleField;
-use craft\fieldlayoutelements\CustomField;
 use craft\fieldlayoutelements\entries\EntryTitleField;
 use craft\fields\Link;
 use craft\fields\Matrix;
@@ -24,7 +23,7 @@ use craft\models\Site;
 
 use Illuminate\Support\Collection;
 
-use vaersaagod\transmate\base\TranslatableFieldActionsTrait;
+use vaersaagod\transmate\base\NativeFieldActionsEventTrait;
 use vaersaagod\transmate\models\fieldprocessors\LinkMateProcessor;
 use vaersaagod\transmate\models\fieldprocessors\MatrixProcessor;
 use vaersaagod\transmate\models\fieldprocessors\RedactorProcessor;
@@ -253,19 +252,19 @@ class TranslateHelper
     {
         if ($fieldLayoutElement instanceof EntryTitleField) {
             return new class($fieldLayoutElement->getAttributes()) extends EntryTitleField {
-                use TranslatableFieldActionsTrait;
+                use NativeFieldActionsEventTrait;
             };
         }
         
         if ($fieldLayoutElement instanceof AssetTitleField) {
             return new class($fieldLayoutElement->getAttributes()) extends AssetTitleField {
-                use TranslatableFieldActionsTrait;
+                use NativeFieldActionsEventTrait;
             };
         }
         
         if ($fieldLayoutElement instanceof AltField) {
             return new class($fieldLayoutElement->getAttributes()) extends AltField {
-                use TranslatableFieldActionsTrait;
+                use NativeFieldActionsEventTrait;
             };
         }
 
