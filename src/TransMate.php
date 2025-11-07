@@ -177,6 +177,10 @@ class TransMate extends Plugin
                             return;
                         }
 
+                        // Filter out any existing translate actions
+                        $event->items = array_filter($event->items, static fn (array $action) => empty($action['attributes']['data']['transmate-field-translate']));
+
+                        // Get translate action for this field and element
                         $translateAction = TranslateHelper::getTranslateFieldAction($layoutElement, $element);
                         if (empty($translateAction)) {
                             return;
