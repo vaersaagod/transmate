@@ -18,6 +18,7 @@ use craft\events\ElementEvent;
 use craft\events\RegisterElementActionsEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\fieldlayoutelements\BaseNativeField;
+use craft\helpers\ElementHelper;
 use craft\log\MonologTarget;
 use craft\models\FieldLayout;
 use craft\services\Elements;
@@ -127,7 +128,7 @@ class TransMate extends Plugin
             function (DefineHtmlEvent $event) {
                 $element = $event->sender;
 
-                if ($element instanceof User) {
+                if ($element instanceof User || ElementHelper::isRevision($element)) {
                     return;
                 }
 
@@ -160,7 +161,7 @@ class TransMate extends Plugin
                 }
 
                 $element = $event->element;
-                if (!$element instanceof ElementInterface) {
+                if (!$element instanceof ElementInterface || ElementHelper::isRevision($element)) {
                     return;
                 }
 
