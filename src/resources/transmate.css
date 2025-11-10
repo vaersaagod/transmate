@@ -49,3 +49,7 @@
 .translate-field-modal {
   max-width: 380px;
 }
+
+.transmate-btn::before {
+    content: "language";
+}
