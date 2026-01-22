@@ -11,8 +11,10 @@ use craft\db\Query;
 use craft\elements\Asset;
 use craft\elements\Entry;
 use craft\elements\User;
+use craft\helpers\ElementHelper as CraftElementHelper;
 use craft\fieldlayoutelements\assets\AltField;
 use craft\fieldlayoutelements\assets\AssetTitleField;
+use craft\fieldlayoutelements\CustomField;
 use craft\fieldlayoutelements\entries\EntryTitleField;
 use craft\fields\Link;
 use craft\fields\Matrix;
@@ -23,7 +25,6 @@ use craft\models\Site;
 
 use Illuminate\Support\Collection;
 
-use vaersaagod\transmate\base\NativeFieldActionsEventTrait;
 use vaersaagod\transmate\models\fieldprocessors\LinkMateProcessor;
 use vaersaagod\transmate\models\fieldprocessors\MatrixProcessor;
 use vaersaagod\transmate\models\fieldprocessors\RedactorProcessor;
@@ -247,37 +248,14 @@ class TranslateHelper
         
         return false;
     }
-
-    public static function getTranslatableFieldLayoutElement(FieldLayoutElement $fieldLayoutElement): FieldLayoutElement
-    {
-        if ($fieldLayoutElement instanceof EntryTitleField) {
-            return new class($fieldLayoutElement->getAttributes()) extends EntryTitleField {
-                use NativeFieldActionsEventTrait;
-            };
-        }
-        
-        if ($fieldLayoutElement instanceof AssetTitleField) {
-            return new class($fieldLayoutElement->getAttributes()) extends AssetTitleField {
-                use NativeFieldActionsEventTrait;
-            };
-        }
-        
-        if ($fieldLayoutElement instanceof AltField) {
-            return new class($fieldLayoutElement->getAttributes()) extends AltField {
-                use NativeFieldActionsEventTrait;
-            };
-        }
-
-        return $fieldLayoutElement;
-    }    
     
     /**
-     * @param FieldLayoutElement $fieldLayoutElement
+     * @param FieldLayoutElement|null $fieldLayoutElement
      * @param ElementInterface|null $element
      * @return array|null
      * @throws \Throwable
      */
-    public static function getTranslateFieldAction(FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): ?array
+    public static function getTranslateFieldAction(?FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): ?array
     {
         if (!self::isFieldLayoutElementTranslatableForElement($fieldLayoutElement, $element)) {
             return null;
@@ -337,20 +315,35 @@ class TranslateHelper
      * @param FieldLayoutElement $fieldLayoutElement
      * @param ElementInterface|null $element
      * @return bool
+     * @throws \craft\errors\FieldNotFoundException
+     * @throws \yii\base\InvalidConfigException
      */
     protected static function isFieldLayoutElementTranslatableForElement(FieldLayoutElement $fieldLayoutElement, ?ElementInterface $element): bool
     {
-        if ($fieldLayoutElement instanceof AltField) {
-            return $fieldLayoutElement->getLayout()->provider?->altTranslationMethod !== Field::TRANSLATION_METHOD_NONE;
+        if (!$element instanceof ElementInterface || CraftElementHelper::isRevision($element)) {
+            return false;
         }
-        
+
+        // Custom fields
+        if ($fieldLayoutElement instanceof CustomField) {
+            if ($fieldLayoutElement->getField() instanceof Matrix) {
+                return true;
+            }
+
+            return $fieldLayoutElement->getField()?->getIsTranslatable($element) ?? false;
+        }
+
+        // Title fields
         if ($fieldLayoutElement instanceof EntryTitleField || $fieldLayoutElement instanceof AssetTitleField) {
             return $fieldLayoutElement->getLayout()->provider?->titleTranslationMethod !== Field::TRANSLATION_METHOD_NONE;
         }
-        
-        if ($fieldLayoutElement->getField() instanceof Matrix) {
-            return true;
+
+        // Alt fields
+        if ($fieldLayoutElement instanceof AltField) {
+            return $fieldLayoutElement->getLayout()->provider?->altTranslationMethod !== Field::TRANSLATION_METHOD_NONE;
         }
-        return $fieldLayoutElement->getField()?->getIsTranslatable($element) ?? false;
+
+        // No support for other types of field layout elements currently
+        return false;
     }
 }

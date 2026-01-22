@@ -4,23 +4,20 @@ namespace vaersaagod\transmate;
 
 use Craft;
 use craft\elements\User;
-use craft\events\DefineMenuItemsEvent;
+use craft\events\DefineFieldActionsEvent;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\base\Event;
-use craft\base\Field;
 use craft\base\FieldLayoutElement;
 use craft\base\Model;
 use craft\base\Plugin;
-use craft\events\DefineFieldHtmlEvent;
 use craft\events\DefineHtmlEvent;
 use craft\events\ElementEvent;
 use craft\events\RegisterElementActionsEvent;
 use craft\events\RegisterUserPermissionsEvent;
-use craft\fieldlayoutelements\BaseNativeField;
+use craft\fieldlayoutelements\BaseField;
 use craft\helpers\ElementHelper;
 use craft\log\MonologTarget;
-use craft\models\FieldLayout;
 use craft\services\Elements;
 use craft\services\UserPermissions;
 
@@ -151,90 +148,35 @@ class TransMate extends Plugin
         );
 
         // Add translate field action to field layout elements
-        // We wrap this in a FieldLayout::EVENT_DEFINE_INPUT_HTML event to access the element (which unfortunately is not exposed for the new Field::EVENT_DEFINE_ACTION_MENU_ITEMS event in Craft 5.7)
         Event::on(
-            Field::class,
-            Field::EVENT_DEFINE_INPUT_HTML,
-            static function (DefineFieldHtmlEvent $event) {
-                if (!$event->sender instanceof Field || $event->static || $event->inline) {
+            BaseField::class,
+            BaseField::EVENT_DEFINE_ACTION_MENU_ITEMS,
+            static function (DefineFieldActionsEvent $event) {
+                if ($event->static || !$event->sender instanceof FieldLayoutElement) {
                     return;
                 }
 
-                $element = $event->element;
-                if (!$element instanceof ElementInterface || ElementHelper::isRevision($element)) {
+                $translateAction = TranslateHelper::getTranslateFieldAction($event->sender, $event->element);
+                if (empty($translateAction)) {
                     return;
                 }
 
-                $layoutElement = $event->sender->layoutElement;
-                if (!$layoutElement instanceof FieldLayoutElement) {
-                    return;
+                // Try to put it before the "Field settings" action, if it exists
+                $fieldSettingsActionIndex = array_search(true, array_map(fn($id) => str_starts_with($id, 'action-edit-'), array_column($event->items, 'id')));
+                if ($fieldSettingsActionIndex !== false) {
+                    array_splice($event->items, $fieldSettingsActionIndex, 0, [$translateAction]);
+                } else {
+                    $event->items[] = $translateAction;
                 }
-
-                Event::on(
-                    Field::class,
-                    Field::EVENT_DEFINE_ACTION_MENU_ITEMS,
-                    static function (DefineMenuItemsEvent $event) use ($element, $layoutElement) {
-                        if ($event->sender?->layoutElement->uid !== $layoutElement->uid) {
-                            return;
-                        }
-
-                        // Filter out any existing translate actions
-                        $event->items = array_filter($event->items, static fn (array $action) => empty($action['attributes']['data']['transmate-field-translate']));
-
-                        // Get translate action for this field and element
-                        $translateAction = TranslateHelper::getTranslateFieldAction($layoutElement, $element);
-                        if (empty($translateAction)) {
-                            return;
-                        }
-
-                        // Try to put it before the "Field settings" action, if it exists
-                        $fieldSettingsActionIndex = array_search(true, array_map(fn($id) => str_starts_with($id, 'action-edit-'), array_column($event->items, 'id')));
-                        if ($fieldSettingsActionIndex !== false) {
-                            array_splice($event->items, $fieldSettingsActionIndex, 0, [$translateAction]);
-                        } else {
-                            $event->items[] = $translateAction;
-                        }
-                    }
-                );
-            }
-        );
-
-        // Monkey-patch in translate field actions for native fields; title and alt
-        // This is a (hopefully) temporary fix – https://github.com/craftcms/cms/discussions/16779
-        Event::on(
-            FieldLayout::class,
-            Model::EVENT_INIT,
-            static function (\yii\base\Event $event) {
-                $fieldLayout = &$event->sender;
-                foreach ($fieldLayout->tabs as $tab) {
-                    if (empty($tab->elements)) {
-                        return;
-                    }
-                    $tab->elements = array_map([TranslateHelper::class, 'getTranslatableFieldLayoutElement'], $tab->elements);
-                }
-            }
-        );
-
-        // This would never fire if not for the monkey patch above
-        Event::on(
-            BaseNativeField::class,
-            'eventDefineNativeFieldActionMenuItems',
-            static function (DefineMenuItemsEvent $event) {
-                if (!empty($event->static) || !property_exists($event, 'element')) {
-                    return;
-                }
-                /** @var FieldLayoutElement $layoutElement */
-                $layoutElement = $event->sender;
-                $translateFieldAction = TranslateHelper::getTranslateFieldAction($layoutElement, $event->element);
-                if (empty($translateFieldAction)) {
-                    return;
-                }
-                $event->items = [...$event->items, $translateFieldAction];
             }
         );
 
     }
 
+    /**
+     * @return Model|null
+     * @throws \yii\base\InvalidConfigException
+     */
     protected function createSettingsModel(): ?Model
     {
         return Craft::createObject(Settings::class);
