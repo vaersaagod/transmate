@@ -7,7 +7,6 @@ use craft\base\Component;
 use craft\base\Element;
 use craft\base\ElementInterface;
 use craft\elements\Asset;
-use craft\elements\GlobalSet;
 use craft\models\Site;
 
 use vaersaagod\transmate\helpers\ElementHelper;
@@ -63,10 +62,7 @@ class Translate extends Component
         }
 
         // Create translator
-        $translator = $this->getTranslator();
-        if ($translator === null) {
-            throw new InvalidConfigException('Translator could not be created.');
-        }
+        $translator = $this->getTranslator($fromSite, $toSite);
 
         // If saving as draft, ensure we are working with a draft
         if ($saveAsDraft && !$targetElement->getIsDraft()) {
@@ -78,6 +74,8 @@ class Translate extends Component
 
         $translator->fromLanguage = $fromSite->getLocale()->getLanguageID();
         $translator->toLanguage = $language;
+
+        Craft::info("Translating element $element->id from site $fromSite->handle to site $toSite->handle ($language), using the " . $translator::HANDLE . " translator", __METHOD__);
 
         $translatableContent = TranslateHelper::getTranslatableContentFromElement($element, $targetElement, $attributes);
         $translatableContent->translate($translator);
@@ -100,9 +98,6 @@ class Translate extends Component
         }
 
         if ($saveElement) {
-            $revisionNotes = 'Translated from "'.$fromSite->name.'" ('.$fromSite->getLocale()->getLanguageID().')';
-            $targetElement->setRevisionNotes($revisionNotes);
-
             Craft::$app->elements->saveElement($targetElement);
         }
 
@@ -181,23 +176,29 @@ class Translate extends Component
         }
     }
 
-    public function getTranslator(): ?BaseTranslator
+    /**
+     * @param Site $fromSite
+     * @param Site $toSite
+     * @return BaseTranslator
+     * @throws InvalidConfigException
+     */
+    private function getTranslator(Site $fromSite, Site $toSite): BaseTranslator
     {
-        $translator = TransMate::getInstance()->getSettings()->translator;
+        $settings = TransMate::getInstance()->getSettings();
 
-        if (empty($translator)) {
-            return null;
+        $translatorHandle = $settings
+            ->getTranslatorResolver()
+            ->resolve($fromSite->handle, $toSite->handle);
+
+        if ($translatorHandle === 'deepl') {
+            return new DeepLTranslator($settings->translatorConfig[$translatorHandle] ?? null);
         }
 
-        if ($translator === 'deepl') {
-            return new DeepLTranslator(TransMate::getInstance()->getSettings()->translatorConfig[$translator] ?? null);
+        if ($translatorHandle === 'openai') {
+            return new OpenAITranslator($settings->translatorConfig[$translatorHandle] ?? null);
         }
 
-        if ($translator === 'openai') {
-            return new OpenAITranslator(TransMate::getInstance()->getSettings()->translatorConfig[$translator] ?? null);
-        }
-
-        return null;
+        throw new InvalidConfigException("\"$translatorHandle\" is not a supported translator.");
     }
 
 }

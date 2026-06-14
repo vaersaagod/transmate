@@ -3,12 +3,16 @@
 namespace vaersaagod\transmate\translators;
 
 use Craft;
+
 use Illuminate\Support\Collection;
+
 use vaersaagod\transmate\models\OpenAISettings;
-use vaersaagod\transmate\TransMate;
 
 class OpenAITranslator extends BaseTranslator
 {
+
+    /** @var string */
+    public const HANDLE = 'openai';
     
     public function __construct(?array $settings=null)
     {

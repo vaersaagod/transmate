@@ -3,15 +3,17 @@
 namespace vaersaagod\transmate\translators;
 
 use craft\helpers\StringHelper;
-use craft\web\View;
+
 use vaersaagod\transmate\models\DeepLSettings;
-use vaersaagod\transmate\TransMate;
 
 class DeepLTranslator extends BaseTranslator
 {
     // DeepL is particular about this, country codes need to be very specific, and different
     // values are allowed depending on source and target.
     // TODO : Need to do a more thorough deep dive here...
+
+    /** @var string */
+    public const HANDLE = 'deepl';
     
     private static array $sourceCountryCodeLUM = [
         'en-US' => 'en',
