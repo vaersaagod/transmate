@@ -1,6 +1,6 @@
 # TransMate Changelog
 
-## Unreleased
+## 1.1.0 - 2026-06-23
 ### Added
 - Adds per-site translator support: set `translator` to a map of site handles to translators.
 
