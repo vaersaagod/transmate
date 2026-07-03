@@ -22,6 +22,7 @@ use vaersaagod\transmate\jobs\TranslateJob;
 use vaersaagod\transmate\TransMate;
 
 use yii\web\BadRequestHttpException;
+use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 use yii\web\ServerErrorHttpException;
@@ -32,10 +33,28 @@ class DefaultController extends Controller
     /** @var array|bool|int */
     public array|bool|int $allowAnonymous = false;
 
+    /**
+     * @inheritdoc
+     * @throws \yii\web\BadRequestHttpException
+     * @throws \yii\web\ForbiddenHttpException
+     */
+    public function beforeAction($action): bool
+    {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+
+        // All actions mutate content or trigger paid API calls, and are only ever
+        // called via POST from the plugin's CP JavaScript.
+        $this->requireCpRequest();
+        $this->requirePostRequest();
+        $this->requirePermission('transmateCanTranslate');
+
+        return true;
+    }
+
     public function actionTranslateFromSite()
     {
-        $this->requireCpRequest();
-
         $elementId = (int)$this->request->getRequiredParam('elementId');
         $elementSiteId = (int)$this->request->getRequiredParam('elementSiteId');
         $fromSiteId = (int)$this->request->getParam('fromSiteId');
@@ -57,6 +76,10 @@ class DefaultController extends Controller
             throw new NotFoundHttpException("Element not found");
         }
 
+        if (!TranslateHelper::canTranslate($fromElement, $fromSite, $currentSite)) {
+            throw new ForbiddenHttpException('You are not allowed to translate this element into the requested site.');
+        }
+
         $translatedElement = TransMate::getInstance()->translate->translateElement($fromElement, $fromSite, $currentSite, null, 'provisional');
 
         if ($translatedElement !== null) {
@@ -76,18 +99,35 @@ class DefaultController extends Controller
 
     public function actionTranslateElementsToSites(): ?Response
     {
-        $this->requireCpRequest();
-
         $fromSiteId = (int)$this->request->getRequiredParam('siteId');
         $elementIds = $this->request->getRequiredParam('elementIds');
         $siteIds = $this->request->getRequiredParam('siteIds');
         $saveAsDraft = $this->request->getRequiredParam('saveAsDraft') === 'yes';
 
+        $fromSite = \Craft::$app->getSites()->getSiteById($fromSiteId);
+        if ($fromSite === null) {
+            throw new BadRequestHttpException("Invalid site ID: $fromSiteId");
+        }
+
         $queue = \Craft::$app->getQueue();
         $jobCount = 0;
 
         foreach ($elementIds as $elementId) {
+            $element = \Craft::$app->getElements()->getElementById((int)$elementId, null, $fromSite->id);
+            if ($element === null) {
+                throw new NotFoundHttpException("Element with ID $elementId not found");
+            }
+
             foreach ($siteIds as $toSiteId) {
+                $toSite = \Craft::$app->getSites()->getSiteById((int)$toSiteId);
+                if ($toSite === null) {
+                    throw new BadRequestHttpException("Invalid site ID: $toSiteId");
+                }
+
+                if (!TranslateHelper::canTranslate($element, $fromSite, $toSite)) {
+                    throw new ForbiddenHttpException('You are not allowed to translate this element into the requested site.');
+                }
+
                 $jobId = $queue->push(new TranslateJob([
                     'description' => \Craft::t('transmate', 'Translating content'),
                     'elementId' => $elementId,
@@ -109,8 +149,6 @@ class DefaultController extends Controller
 
     public function actionTranslateToSiteModalData(): ?Response
     {
-        $this->requireCpRequest();
-
         $elementIds = $this->request->getRequiredParam('elementIds');
         $siteId = (int)$this->request->getRequiredParam('siteId');
 
@@ -157,8 +195,6 @@ class DefaultController extends Controller
 
     public function actionTranslateFieldFromSite(): Response
     {
-        $this->requireCpRequest();
-
         $elementId = (int)$this->request->getRequiredBodyParam('elementId');
         $siteId = (int)$this->request->getRequiredBodyParam('siteId');
         $element = \Craft::$app->getElements()->getElementById($elementId, siteId: $siteId);
@@ -176,6 +212,10 @@ class DefaultController extends Controller
         $fromElement = Craft::$app->getElements()->getElementById($elementId, $element::class, $fromSite->id);
         if ($fromElement === null) {
             throw new NotFoundHttpException("Element not found");
+        }
+
+        if (!TranslateHelper::canTranslate($element, $fromSite, $element->getSite())) {
+            throw new ForbiddenHttpException('You are not allowed to translate this element into the requested site.');
         }
 
         $layoutElementUid = $this->request->getRequiredBodyParam('layoutElementUid');
@@ -208,7 +248,7 @@ class DefaultController extends Controller
             $transaction->rollBack();
 
             return $this->asFailure(
-                message: $e->getMessage() // TODO would be cool with friendlier error messages
+                message: Craft::t('transmate', 'An error occurred when trying to translate the field.')
             );
         }
 

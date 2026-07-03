@@ -232,6 +232,57 @@ class TranslateHelper
             ->all();
     }
     
+    /**
+     * Returns whether the current (or given) user is allowed to translate the given element
+     * from one site into another.
+     *
+     * This mirrors the checks used to build the UI in [[getAllowedSitesForTranslation()]], and
+     * must be enforced by any controller action that performs a translation – the UI-facing
+     * helpers only decide what to *show*, not what a request is allowed to *do*.
+     *
+     * @param ElementInterface $element The element being translated
+     * @param Site $fromSite The source site
+     * @param Site $toSite The target site being written to
+     * @param User|null $user The user to check; defaults to the current user
+     * @return bool
+     * @throws \Throwable
+     */
+    public static function canTranslate(ElementInterface $element, Site $fromSite, Site $toSite, ?User $user = null): bool
+    {
+        $user = $user ?? self::currentUser();
+
+        if ($user === null) {
+            return false;
+        }
+
+        if (!$user->can('transmateCanTranslate')) {
+            return false;
+        }
+
+        // Must be able to edit the site we're writing the translation into
+        if (!$user->can('editSite:' . $toSite->uid)) {
+            return false;
+        }
+
+        // Source and target must be in the same translation group
+        if (!self::areSitesInSameTranslationGroup($fromSite, $toSite)) {
+            return false;
+        }
+
+        // For entries, the user must at least be allowed to view the section
+        $rootOwner = $element->getRootOwner();
+
+        if ($rootOwner instanceof Entry) {
+            $section = $rootOwner->getSection();
+
+            if ($section !== null && !$user->can('viewEntries:' . $section->uid)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static function areSitesInSameTranslationGroup($oneSite, $anotherSite): bool
     {
         $settings = TransMate::getInstance()->getSettings();
