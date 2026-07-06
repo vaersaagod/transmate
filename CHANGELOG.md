@@ -1,5 +1,9 @@
 # TransMate Changelog
 
+## Unreleased
+### Added
+- Added the `Translate::translateText()` service method, for translating a single string of text between two sites' languages.
+
 ## 1.1.1 - 2026-07-03
 ### Fixed
 - Fixed a security issue where any control panel user could translate elements into any site, regardless of their permissions.

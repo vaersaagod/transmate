@@ -104,6 +104,51 @@ class Translate extends Component
         return $targetElement;
     }
 
+    /**
+     * Translates a single string of text between two sites' languages, using the translator resolved for the site pair.
+     *
+     * @param string      $text     The text to translate
+     * @param Site|string $fromSite The source site, or a site handle
+     * @param Site|string $toSite   The target site, or a site handle
+     * @param array       $params   Additional params passed on to the translator
+     *
+     * @return string|null The translated text. If the source and target sites' languages are the same, the text is
+     *                     returned untranslated. Returns null if there is nothing to translate, or if the translator
+     *                     comes up empty.
+     * @throws InvalidConfigException
+     * @throws \Throwable
+     */
+    public function translateText(string $text, Site|string $fromSite, Site|string $toSite, array $params = []): ?string
+    {
+        if (!trim($text)) {
+            return null;
+        }
+
+        $fromSite = $this->resolveSite($fromSite);
+        $toSite = $this->resolveSite($toSite);
+
+        $fromLanguage = $fromSite->getLocale()->getLanguageID();
+        $toLanguage = $toSite->getLocale()->getLanguageID();
+
+        if ($fromLanguage === $toLanguage) {
+            return $text;
+        }
+
+        $translator = $this->getTranslator($fromSite, $toSite);
+        $translator->fromLanguage = $fromLanguage;
+        $translator->toLanguage = $toLanguage;
+
+        Craft::info("Translating text from site $fromSite->handle to site $toSite->handle ($toLanguage), using the " . $translator::HANDLE . " translator", __METHOD__);
+
+        $result = $translator->translate($text, $params);
+
+        if (!is_string($result) || !trim($result)) {
+            return null;
+        }
+
+        return $result;
+    }
+
     public function maybeAutoTranslate(ElementInterface $element): void
     {
         $settings = TransMate::getInstance()->getSettings();
@@ -174,6 +219,23 @@ class Translate extends Component
                 Craft::info("Created transform job with ID $jobId for element with ID $element->id from site with ID $fromSite->id to site with ID $toSite->id", __METHOD__);
             }
         }
+    }
+
+    /**
+     * @param Site|string $site A site, or a site handle
+     * @return Site
+     * @throws InvalidConfigException
+     */
+    private function resolveSite(Site|string $site): Site
+    {
+        if ($site instanceof Site) {
+            return $site;
+        }
+        $siteModel = Craft::$app->getSites()->getSiteByHandle($site);
+        if (!$siteModel) {
+            throw new InvalidConfigException("No site exists with the handle \"$site\"");
+        }
+        return $siteModel;
     }
 
     /**
