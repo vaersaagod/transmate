@@ -149,6 +149,56 @@ class Translate extends Component
         return $result;
     }
 
+    /**
+     * Translates multiple strings between two sites' languages in as few requests as the translator
+     * allows (DeepL does it in a single request). Input keys are preserved on the result; empty
+     * inputs and empty results are omitted.
+     *
+     * @param array       $texts    Array of strings to translate (keys preserved)
+     * @param Site|string $fromSite The source site, or a site handle
+     * @param Site|string $toSite   The target site, or a site handle
+     * @param array       $params   Additional params passed on to the translator
+     *
+     * @return array Translated strings keyed as per the input. If source and target languages
+     *               match, the inputs are returned untranslated.
+     * @throws InvalidConfigException
+     * @throws \Throwable
+     */
+    public function translateTexts(array $texts, Site|string $fromSite, Site|string $toSite, array $params = []): array
+    {
+        $texts = array_filter($texts, static fn($text) => is_string($text) && trim($text) !== '');
+        if (empty($texts)) {
+            return [];
+        }
+
+        $fromSite = $this->resolveSite($fromSite);
+        $toSite = $this->resolveSite($toSite);
+
+        $fromLanguage = $fromSite->getLocale()->getLanguageID();
+        $toLanguage = $toSite->getLocale()->getLanguageID();
+
+        if ($fromLanguage === $toLanguage) {
+            return $texts;
+        }
+
+        $translator = $this->getTranslator($fromSite, $toSite);
+        $translator->fromLanguage = $fromLanguage;
+        $translator->toLanguage = $toLanguage;
+
+        Craft::info("Translating " . count($texts) . " strings from site $fromSite->handle to site $toSite->handle ($toLanguage), using the " . $translator::HANDLE . " translator", __METHOD__);
+
+        $results = $translator->translateMany($texts, $params);
+
+        $out = [];
+        foreach ($results as $key => $result) {
+            if (is_string($result) && trim($result) !== '') {
+                $out[$key] = $result;
+            }
+        }
+
+        return $out;
+    }
+
     public function maybeAutoTranslate(ElementInterface $element): void
     {
         $settings = TransMate::getInstance()->getSettings();
