@@ -1,6 +1,6 @@
 # TransMate Changelog
 
-## Unreleased
+## 1.2.0 - 2026-08-07
 ### Added
 - Added the `Translate::translateText()` service method, for translating a single string of text between two sites' languages.
 - Added the `Translate::translateTexts()` service method and a `TranslatorInterface::translateMany()` contract, for translating multiple strings that share a source/target language pair in a single batched request (DeepL translates them in one API call; other translators fall back to a per-string loop).
