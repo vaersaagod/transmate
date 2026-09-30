@@ -11,6 +11,11 @@ class OpenAISettings extends Model
     public string $engine = 'gpt-6.1-sol';
 
     /**
+     * @var int Seconds to wait for a response from OpenAI before giving up.
+     */
+    public int $timeout = 60;
+
+    /**
      * @deprecated in 1.3.0. Ignored, since current OpenAI reasoning models don't accept a temperature.
      */
     public ?float $temperature = null;

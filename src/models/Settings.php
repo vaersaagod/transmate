@@ -22,6 +22,7 @@ class Settings extends Model
         'openai' => [
             'apiKey' => '',
             'engine' => 'gpt-6.1-sol',
+            'timeout' => 60,
         ],
     ];
     public array $autoTranslate = [];

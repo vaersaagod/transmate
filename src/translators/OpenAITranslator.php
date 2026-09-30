@@ -21,7 +21,10 @@ class OpenAITranslator extends BaseTranslator
     
     public function translate(string $content, array $params = []): mixed
     {
-        $client = \OpenAI::client($this->config->apiKey);
+        $client = \OpenAI::factory()
+            ->withApiKey($this->config->apiKey)
+            ->withHttpClient(Craft::createGuzzleClient(['timeout' => $this->config->timeout]))
+            ->make();
         
         $prompt = 'Translate this text from ' . Craft::$app->getI18n()->getLocaleById($this->fromLanguage)->getDisplayName() . ' to ' . Craft::$app->getI18n()->getLocaleById($this->toLanguage)->getDisplayName() . ', keep html, dont add anything around the result: ' . $content;
         
