@@ -48,7 +48,7 @@ class CKEditorProcessor extends Model implements ProcessorInterface
                 $translatedEntry = TransMate::getInstance()->translate->translateElement($chunk->entry, $this->source->site, $this->target->site, $translator->toLanguage, owner: $this->target);
                 
                 if ($translatedEntry) {
-                    $newPieces[] = '<craft-entry data-entry-id="'.$translatedEntry->id.'">$nbsp;</craft-entry>';
+                    $newPieces[] = '<craft-entry data-entry-id="'.$translatedEntry->id.'">&nbsp;</craft-entry>';
                 }
             } elseif ($chunk instanceof \craft\ckeditor\data\Markup) {
                 $newPieces[] = $chunk->rawHtml; // think we need to get raw here to avoid parsing of refs with the wrong site?
