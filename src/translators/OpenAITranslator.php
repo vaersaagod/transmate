@@ -27,7 +27,6 @@ class OpenAITranslator extends BaseTranslator
         
         $clientParams = [
             'model' => $this->config->engine,
-            'temperature' => $this->config->temperature,
             'messages' => [
                 ['role' => 'user', 'content' => $prompt],
             ],

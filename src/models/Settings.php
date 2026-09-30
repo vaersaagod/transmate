@@ -21,8 +21,7 @@ class Settings extends Model
         ],
         'openai' => [
             'apiKey' => '',
-            'engine' => 'gpt-4',
-            'temperature' => 0.7,
+            'engine' => 'gpt-6.1-sol',
         ],
     ];
     public array $autoTranslate = [];
