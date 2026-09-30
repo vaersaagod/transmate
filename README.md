@@ -63,7 +63,7 @@ return [
 ```php
 'translatorConfig' => [
     'deepl'  => ['apiKey' => '', 'options' => [], 'glossaries' => []],
-    'openai' => ['apiKey' => '', 'engine' => 'gpt-4', 'temperature' => 0.7],
+    'openai' => ['apiKey' => '', 'engine' => 'gpt-6.1-sol', 'timeout' => 60],
 ],
 ```
 
@@ -72,7 +72,9 @@ return [
   `'options' => ['model' => 'prefer_quality_optimized']`). `glossaries` maps
   `sourceLang → targetLang → glossaryId` (create glossaries with the console command
   below).
-- **OpenAI** — `engine` is the chat model and `temperature` controls determinism.
+- **OpenAI** — `engine` is the chat model, and `timeout` is how many seconds to wait
+  for a response before giving up. The `temperature` setting is deprecated and
+  ignored, since current OpenAI reasoning models don't accept it.
 
 ### Permissions
 
@@ -88,7 +90,7 @@ TransMate ships two translators:
 | Handle | Backend | Notes |
 |---|---|---|
 | `deepl` | DeepL API | Native batch translation (one request for many strings); language-code normalisation; glossary and `context` support. |
-| `openai` | OpenAI Chat API | Uses the configured `engine`/`temperature`; batches by looping. |
+| `openai` | OpenAI Chat API | Uses the configured `engine`; batches by looping. |
 
 ### Choosing a translator
 
