@@ -1,5 +1,18 @@
 # TransMate Changelog
 
+## 1.3.0 - 2026-09-30
+### Added
+- Added the `translatorConfig.openai.timeout` setting, for how many seconds to wait for a response from OpenAI (defaults to `60`).
+- Added retries to the translate queue job, which is now attempted up to 3 times, with a TTR of 300 seconds per attempt.
+
+### Changed
+- Changed the `openai-php/client` requirement to `^0.21`.
+- Changed the default OpenAI model from `gpt-4` to `gpt-6.1-sol`.
+- Changed the OpenAI translator to no longer send a temperature, since current OpenAI reasoning models don't accept one. The `translatorConfig.openai.temperature` setting is now deprecated and ignored.
+
+### Fixed
+- Fixed nested entries in CKEditor fields getting a literal `$nbsp;` in their placeholder tag when translated.
+
 ## 1.2.0 - 2026-08-07
 ### Added
 - Added the `Translate::translateText()` service method, for translating a single string of text between two sites' languages.
