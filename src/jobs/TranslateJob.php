@@ -8,9 +8,23 @@ use craft\queue\QueueInterface;
 
 use vaersaagod\transmate\TransMate;
 use yii\queue\Queue;
+use yii\queue\RetryableJobInterface;
 
-class TranslateJob extends BaseJob
+class TranslateJob extends BaseJob implements RetryableJobInterface
 {
+    // Constants
+    // =========================================================================
+
+    /**
+     * @var int Seconds a single attempt may run before the queue considers it failed
+     */
+    public const TTR = 300;
+
+    /**
+     * @var int Total number of times the job is attempted, including the first run
+     */
+    public const MAX_ATTEMPTS = 3;
+
     // Public Properties
     // =========================================================================
 
@@ -48,6 +62,24 @@ class TranslateJob extends BaseJob
         $toSite = Craft::$app->sites->getSiteById($this->toSiteId);
         
         TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite, null, $this->saveMode);
+    }
+
+    /**
+     * @return int
+     */
+    public function getTtr(): int
+    {
+        return self::TTR;
+    }
+
+    /**
+     * @param int $attempt
+     * @param \Throwable|null $error
+     * @return bool
+     */
+    public function canRetry($attempt, $error): bool
+    {
+        return $attempt < self::MAX_ATTEMPTS;
     }
 
     // Protected Methods
