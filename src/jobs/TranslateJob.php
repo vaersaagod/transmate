@@ -61,6 +61,10 @@ class TranslateJob extends BaseJob implements RetryableJobInterface
         $fromSite = Craft::$app->sites->getSiteById($this->fromSiteId);
         $toSite = Craft::$app->sites->getSiteById($this->toSiteId);
         
+        if ($element === null || $fromSite === null || $toSite === null) {
+            return;
+        }
+        
         TransMate::getInstance()->translate->translateElement($element, $fromSite, $toSite, null, $this->saveMode);
     }
 
