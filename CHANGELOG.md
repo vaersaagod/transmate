@@ -1,5 +1,10 @@
 # TransMate Changelog
 
+## 1.3.1 - 2026-11-19
+### Changed
+- Changed queue job, it now exits if the element or from/to sites is `null`.
+
+
 ## 1.3.0 - 2026-09-30
 ### Added
 - Added the `translatorConfig.openai.timeout` setting, for how many seconds to wait for a response from OpenAI (defaults to `60`).
